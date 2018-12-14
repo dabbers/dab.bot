@@ -1,0 +1,33 @@
+{
+    "isDirty": false,
+    "path": "config.json",
+    "modules": [],
+    "bot": {
+        "endpoints": [
+            {
+                "type": "IRC",
+                "connectionString": [
+                    "irc.ggxy.co:6667"
+                ],
+                "nickname": "DiBot",
+                "name": "ggxy",
+                "real": "dab's Bot"
+            },
+            {
+                "type": "Discord",
+                "connectionString": [
+                    "Api.KeyHere"
+                ]
+            },
+            {
+                "type": "Telegram",
+                "connectionString": [
+                    "Connection:TokenHere"
+                ]
+            }
+        ],
+        "modules": [
+            "../modules/module1"
+        ]
+    }
+}
