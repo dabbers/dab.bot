@@ -4,6 +4,15 @@ import {IEndpoint} from '../core/IEndpoint';
 import { Command, CommandThrottleOptions, CommandAuthOptions, CommandAuthTypes } from '../core/Command';
 import { Bot } from '../core/Bot';
 import { IEvent } from '../core/Events/IEvent';
+var keys :string[] = [
+        "name", 
+        "fnc",
+        "throttle",
+        "binding",
+        "auth",
+        "serialize",
+        "requireCommandPrefix"
+];
 
 module.exports = new Module( (bot, global) => {
     bot.addCommand(
@@ -34,6 +43,7 @@ module.exports = new Module( (bot, global) => {
             (b:Bot, m:IEvent) => {
                 try {
                     b.logoutUser(m);
+                    (<IMessage>m).reply("Logged out.");
                 }
                 catch(er) {
                     (<IMessage>m).reply("[Error] " + er);
@@ -51,7 +61,6 @@ module.exports = new Module( (bot, global) => {
             (b:Bot, m:IMessage) => {
                 try {
                     let parts = m.message.split(" ");
-
                     let cmd = (parts[1] || "").toLowerCase();
                     let code = parts.splice(2).join(" ");
                     
@@ -98,11 +107,10 @@ module.exports = new Module( (bot, global) => {
             (b:Bot, m:IMessage) => {
                 try {
                     let parts = m.message.split(" ");
-
                     let cmd = (parts[1] || "").toLowerCase();
                     
                     if (!cmd) {
-                        return m.reply("[Error] Please specify a command, or help");
+                        return m.reply("[Error] Please specify a command");
                     }
                     
                     b.delCommand(cmd);
@@ -119,8 +127,55 @@ module.exports = new Module( (bot, global) => {
     ).addCommand(
         new Command(
             "setcmd", 
-            (b:Bot, m:IEvent) => {
+            (b:Bot, m:IMessage) => {
                 try {
+                    let parts = m.message.split(" ");
+                    let cmdName = (parts[1] || "").toLowerCase();
+                    let keyName = (parts[2] || "").toLowerCase();
+                    let cmd = b.textCommands[cmdName];
+
+                    if (!cmd) {
+                        return m.reply("[Error] Please specify a command, or help");
+                    }
+
+
+                    let properties = Object.keys(cmd);
+                    for(let property of properties) {
+                        if (property.toLowerCase() == keyName) {
+
+                        }
+                    }
+                    b.setCommand(null);
+                }
+                catch(er) {
+                    (<IMessage>m).reply("[Error] " + er);
+                }
+            },
+            new CommandThrottleOptions(-1, -1, -1),
+            [],
+            [new CommandAuthOptions(CommandAuthTypes.Level, "3")], 
+            false
+        )
+    ).addCommand(
+        new Command(
+            "getcmd", 
+            (b:Bot, m:IMessage) => {
+                try {
+                    let parts = m.message.split(" ");
+                    let cmdName = (parts[1] || "").toLowerCase();
+                    let keyName = (parts[2] || "").toLowerCase();
+                    let cmd = b.textCommands[cmdName];
+
+                    if (!cmd) {
+                        return m.reply("[Error] Please specify a command, or help");
+                    }
+
+                    let properties = Object.keys(cmd);
+                    for(let property of properties) {
+                        if (property.toLowerCase() == keyName) {
+
+                        }
+                    }
                     b.setCommand(null);
                 }
                 catch(er) {
