@@ -20,7 +20,7 @@ class ProxyBot extends Bot_1.Bot {
             get: (proxy, name) => {
                 switch (name) {
                     case "addCommand":
-                        throw "TODO: addCommand for ProxyBot";
+                        throw new Error("TODO: addCommand for ProxyBot");
                     case "dispose":
                         return function () {
                             console.log("[ProxyBot.ts] Proxybot dispose");

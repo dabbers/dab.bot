@@ -1,6 +1,6 @@
 import { EndpointTypes } from "../EndpointTypes";
 import { ChannelConfig } from "./ChannelConfig";
-import { Manager } from "./Manager";
+import { ManagerConfig } from "./ManagerConfig";
 
 export class EndpointConfig {
     type:EndpointTypes;
@@ -20,7 +20,7 @@ export class EndpointConfig {
 
     channels:ChannelConfig[];
 
-    managers:Manager[];
+    managers:ManagerConfig[];
 
     commandPrefix:string;
 }

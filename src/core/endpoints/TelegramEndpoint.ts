@@ -12,18 +12,25 @@ import Telegraf from 'telegraf';
 import { User } from 'telegram-typings'
 
 import{EndpointConfig} from '../config/EndpointConfig';
+import { DESTRUCTION } from "dns";
+import { IAuthable } from "../IAuthable";
 
 export class TelegramMessage implements IMessage {
     constructor(endpoint:TelegramEndpoint, message:Telegram.ContextMessageUpdate) {
         this.endpoint = endpoint;
         this.msg = message;
+        this.fromUser = new TelegramUser(this.endpoint, this.msg.from);
+
+        this.msg.getChatMember(this.msg.from.id).then((v) => {
+            
+        });
     }
 
     get message(): string {
         return this.msg.message.text;
     }
     get from(): IUser {
-        return new TelegramUser(this.endpoint, this.msg.from);
+        return 
     }
     get isDirectMessage(): boolean {
         return this.msg.chat.type == "private";
@@ -36,21 +43,26 @@ export class TelegramMessage implements IMessage {
             return new TelegramChannel(this.endpoint, this.msg);
         }
     }
+
     reply(message: string): void {
         this.msg.reply(message);
     }
+
     action(message: string): void {
         this.msg.reply("*" + message + "*");
     }
+
     notice(message: string): void {
         this.msg.reply("__**" + message + "**__");
     }
+
     part(): void {
         throw new Error("Method not implemented.");
     }
 
     endpoint: TelegramEndpoint;
     msg:Telegram.ContextMessageUpdate;
+    fromUser:TelegramUser;
 
     get discriminator() : string {
         return "TelegramMessage";
@@ -62,6 +74,11 @@ export class TelegramUser implements IUser {
         this.endpoint = endpoint;
         this.user = user;
     }
+
+    get account() : string {
+        return this.user.id.toString();
+    }
+
     get name(): string {
         return this.user.first_name;
     }
@@ -96,6 +113,19 @@ export class TelegramChannel implements IChannel {
     part(): void {
         throw new Error("Method not implemented.");
     }
+    
+    userHasRole(user:IUser, role:string):Promise<boolean> {
+        return new Promise((resolve, reject) => {
+            if (role.toLocaleLowerCase().indexOf("admin") !== 0) {
+                return resolve(false);
+            }
+
+            this.chann.getChatAdministrators().then( (v) => {
+                return resolve(v.filter( member => member.user.id.toString() == user.account).length > 0);
+            });
+        });
+    }
+
     discriminator: "CORE.IChannel";
     endpoint: TelegramEndpoint;
     chann:Telegram.ContextMessageUpdate;
@@ -109,27 +139,27 @@ export class TelegramEndpoint extends EventEmitter implements IEndpoint {
     get name() : string {
         return this.config.name || this.type.toString();
     }
-    constructor(options:EndpointConfig) {
+
+    constructor(options:EndpointConfig, authBot:IAuthable) {
         super();
 
         this.config = options;
+        this.authBot = authBot;
     }
 
     connect(): void {
         console.log("telegram");
         this.client = new Telegraf(this.config.connectionString[0]);
 
-        this.client.on('connected_website', () => {
-            // this.client.telegram.getChatMembersCount
-            this.client.telegram.getMe().then((botInfo) => {
-                console.log("TELEGRAM ME:" + JSON.stringify(botInfo));
-
-                this.me = new TelegramUser(this, botInfo);
-                this.emit(EndpointEvents.Connected.toString(), this, this.me);
-              }, (reason) => {
-                  console.log("TELEGRAM ME ERROR: " + JSON.stringify(reason));
-            });
-        });
+        // Need to understand if this is needed when using polling.
+        // this.client.on('connected_website', () => {
+        //     this.client.telegram.getMe().then((botInfo) => {
+        //         this.me = new TelegramUser(this, botInfo);
+        //         this.emit(EndpointEvents.Connected.toString(), this, this.me);
+        //       }, (reason) => {
+        //           console.error("TELEGRAM ME ERROR: " + JSON.stringify(reason));
+        //     });
+        // });
 
         this.client.on('text', (ctx) => {
             let msg = new TelegramMessage(this, ctx);
@@ -144,19 +174,29 @@ export class TelegramEndpoint extends EventEmitter implements IEndpoint {
                 this.me = new TelegramUser(this, botInfo);
                 this.emit(EndpointEvents.Connected.toString(), this, this.me);
               }, (reason) => {
-                  console.log("TELEGRAM ME ERROR: " + JSON.stringify(reason));
+                  console.error("TELEGRAM ME ERROR: " + JSON.stringify(reason));
             });
         });      
     }
+
     disconnect(): void {
-        throw new Error("Method not implemented.");
+        throw new Error("Cannot disconnect from telegram.");
     }
-    isConnected: boolean;
+
+    get isConnected(): boolean {
+        return true; // Technically, we're never offline?
+    }
+
     join(channel: string | IChannel, key: string): void {
-        throw new Error("Method not implemented.");
+        throw new Error("Cannot join channels from telegram.");
     }
     part(channel: string | IChannel): void {
-        throw new Error("Method not implemented.");
+        if (typeof channel === "string") {
+            this.client.telegram.leaveChat(channel);
+        }
+        else {
+            this.client.telegram.leaveChat(channel.name);
+        }
     }
     say(destination: string | IChannel | IUser, message: string): void {
         if (typeof destination === "string") {
@@ -172,5 +212,6 @@ export class TelegramEndpoint extends EventEmitter implements IEndpoint {
     
     me: IUser
     client:Telegram.Telegraf<Telegram.ContextMessageUpdate>;
-    config:EndpointConfig
+    config:EndpointConfig;
+    authBot:IAuthable;
 }

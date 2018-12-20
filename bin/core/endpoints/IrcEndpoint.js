@@ -33,20 +33,22 @@ exports.IrcMessage = IrcMessage;
 class GenericIrcUser {
 }
 class IrcUser {
-    constructor(endpoint, user, ident, host, real) {
+    constructor(endpoint, user, ident, host, real, account) {
         this.endpoint = endpoint;
         if (typeof user === "string") {
             this.name = user;
             this.ident = ident;
             this.host = host;
             this.real = real;
+            this.account = account;
         }
         else {
             if (ident)
-                throw "Cannot mix GenericUser with extra params";
+                throw new Error("Cannot mix GenericUser with extra params");
             this.name = user.nick;
             this.ident = user.username;
             this.host = user.hostname;
+            this.account = "";
             this.real = "";
         }
     }
@@ -74,16 +76,22 @@ class IrcChannel {
     part() {
         this.endpoint.part(this);
     }
+    userHasRole(user, role) {
+        return new Promise((resolve, reject) => {
+            resolve(false);
+        });
+    }
 }
 exports.IrcChannel = IrcChannel;
 class IrcEndpoint extends events_1.EventEmitter {
     get me() {
         return new IrcUser(this, this.client.user.nick, this.client.user.username, this.client.user.host, "");
     }
-    constructor(options) {
+    constructor(options, authBot) {
         super();
         this.config = options || null;
         this.client = new IRC.Client();
+        this.authBot = authBot;
     }
     say(destination, message) {
         if (typeof destination === "string") {
@@ -139,8 +147,6 @@ class IrcEndpoint extends events_1.EventEmitter {
             this.emit(IEndpoint_1.EndpointEvents.Disconnected.toString(), this, this.me);
         });
         this.client.on('message', (event) => {
-            // console.log('<' + event.target + '>', event.message);
-            // console.log(event);
             let msg = new IrcMessage(this, new IrcUser(this, event), (event.target[0] == "#" ? new IrcChannel(this, event.target) : this.me), event.message);
             this.emit(IEndpoint_1.EndpointEvents.Message.toString(), this, msg);
         });

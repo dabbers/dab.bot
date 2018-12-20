@@ -8,12 +8,15 @@ class TelegramMessage {
     constructor(endpoint, message) {
         this.endpoint = endpoint;
         this.msg = message;
+        this.fromUser = new TelegramUser(this.endpoint, this.msg.from);
+        this.msg.getChatMember(this.msg.from.id).then((v) => {
+        });
     }
     get message() {
         return this.msg.message.text;
     }
     get from() {
-        return new TelegramUser(this.endpoint, this.msg.from);
+        return;
     }
     get isDirectMessage() {
         return this.msg.chat.type == "private";
@@ -48,6 +51,9 @@ class TelegramUser {
         this.endpoint = endpoint;
         this.user = user;
     }
+    get account() {
+        return this.user.id.toString();
+    }
     get name() {
         return this.user.first_name;
     }
@@ -73,6 +79,16 @@ class TelegramChannel {
     part() {
         throw new Error("Method not implemented.");
     }
+    userHasRole(user, role) {
+        return new Promise((resolve, reject) => {
+            if (role.toLocaleLowerCase().indexOf("admin") !== 0) {
+                return resolve(false);
+            }
+            this.chann.getChatAdministrators().then((v) => {
+                return resolve(v.filter(member => member.user.id.toString() == user.account).length > 0);
+            });
+        });
+    }
 }
 exports.TelegramChannel = TelegramChannel;
 class TelegramEndpoint extends events_1.EventEmitter {
@@ -82,23 +98,23 @@ class TelegramEndpoint extends events_1.EventEmitter {
     get name() {
         return this.config.name || this.type.toString();
     }
-    constructor(options) {
+    constructor(options, authBot) {
         super();
         this.config = options;
+        this.authBot = authBot;
     }
     connect() {
         console.log("telegram");
         this.client = new telegraf_1.default(this.config.connectionString[0]);
-        this.client.on('connected_website', () => {
-            // this.client.telegram.getChatMembersCount
-            this.client.telegram.getMe().then((botInfo) => {
-                console.log("TELEGRAM ME:" + JSON.stringify(botInfo));
-                this.me = new TelegramUser(this, botInfo);
-                this.emit(IEndpoint_1.EndpointEvents.Connected.toString(), this, this.me);
-            }, (reason) => {
-                console.log("TELEGRAM ME ERROR: " + JSON.stringify(reason));
-            });
-        });
+        // Need to understand if this is needed when using polling.
+        // this.client.on('connected_website', () => {
+        //     this.client.telegram.getMe().then((botInfo) => {
+        //         this.me = new TelegramUser(this, botInfo);
+        //         this.emit(EndpointEvents.Connected.toString(), this, this.me);
+        //       }, (reason) => {
+        //           console.error("TELEGRAM ME ERROR: " + JSON.stringify(reason));
+        //     });
+        // });
         this.client.on('text', (ctx) => {
             let msg = new TelegramMessage(this, ctx);
             this.emit(IEndpoint_1.EndpointEvents.Message.toString(), this, msg);
@@ -111,18 +127,26 @@ class TelegramEndpoint extends events_1.EventEmitter {
                 this.me = new TelegramUser(this, botInfo);
                 this.emit(IEndpoint_1.EndpointEvents.Connected.toString(), this, this.me);
             }, (reason) => {
-                console.log("TELEGRAM ME ERROR: " + JSON.stringify(reason));
+                console.error("TELEGRAM ME ERROR: " + JSON.stringify(reason));
             });
         });
     }
     disconnect() {
-        throw new Error("Method not implemented.");
+        throw new Error("Cannot disconnect from telegram.");
+    }
+    get isConnected() {
+        return true; // Technically, we're never offline?
     }
     join(channel, key) {
-        throw new Error("Method not implemented.");
+        throw new Error("Cannot join channels from telegram.");
     }
     part(channel) {
-        throw new Error("Method not implemented.");
+        if (typeof channel === "string") {
+            this.client.telegram.leaveChat(channel);
+        }
+        else {
+            this.client.telegram.leaveChat(channel.name);
+        }
     }
     say(destination, message) {
         if (typeof destination === "string") {

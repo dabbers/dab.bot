@@ -3,6 +3,8 @@ import {EventEmitter} from "events";
 import {IChannel} from './IChannel';
 import {IUser} from './IUser';
 import {IMessage} from './Events/IMessage';
+import { IAuthable } from "./IAuthable";
+import { EndpointConfig } from "./config/EndpointConfig";
 
 export enum EndpointEvents {
     Connected = "Connected",
@@ -30,4 +32,6 @@ export interface IEndpoint extends EventEmitter {
     send(msg:IMessage) : void;
     
     me:IUser;
+    authBot:IAuthable;
+    config:EndpointConfig;
 }

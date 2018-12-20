@@ -40,6 +40,9 @@ class DiscordUser {
     get name() {
         return this.user.username;
     }
+    get account() {
+        return this.user.id;
+    }
     say(message) {
         this.user.sendMessage(message);
     }
@@ -62,6 +65,11 @@ class DiscordChannel {
     part() {
         throw new Error("Method not implemented.");
     }
+    userHasRole(user, role) {
+        return new Promise((resolve, reject) => {
+            resolve(this.chann.members.filter(p => p.id == user.account).first().roles.filter(p => p.id == role).size > 0);
+        });
+    }
 }
 exports.DiscordChannel = DiscordChannel;
 class DiscordEndpoint extends events_1.EventEmitter {
@@ -71,9 +79,10 @@ class DiscordEndpoint extends events_1.EventEmitter {
     get name() {
         return this.config.name || this.type.toString();
     }
-    constructor(options) {
+    constructor(options, authBot) {
         super();
         this.config = options;
+        this.authBot = authBot;
     }
     connect() {
         console.log("discord connect");

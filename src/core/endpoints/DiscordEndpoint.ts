@@ -10,6 +10,7 @@ import {ILeave} from '../Events/ILeave';
 import * as Discord from 'discord.js';
 
 import{EndpointConfig} from '../config/EndpointConfig';
+import { IAuthable } from "../IAuthable";
 
 export class DiscordMessage implements IMessage {
     constructor(endpoint:DiscordEndpoint, message:Discord.Message) {
@@ -55,6 +56,10 @@ export class DiscordUser implements IUser {
     get name(): string {
         return this.user.username;
     }
+    
+    get account(): string {
+        return this.user.id;
+    }
 
     discriminator: "CORE.IUser";
     say(message: string): void {
@@ -86,6 +91,13 @@ export class DiscordChannel implements IChannel {
     part(): void {
         throw new Error("Method not implemented.");
     }
+
+    userHasRole(user:IUser, role:string):Promise<boolean> {
+        return new Promise<boolean>((resolve, reject) => {
+            resolve(this.chann.members.filter(p => p.id == user.account).first().roles.filter(p => p.id == role).size > 0);
+        });
+    }
+    
     discriminator: "CORE.IChannel";
     endpoint: DiscordEndpoint;
     chann:Discord.TextChannel;
@@ -100,10 +112,11 @@ export class DiscordEndpoint extends EventEmitter implements IEndpoint {
     get name() : string {
         return this.config.name || this.type.toString();
     }
-    constructor(options:EndpointConfig) {
+    constructor(options:EndpointConfig, authBot:IAuthable) {
         super();
 
         this.config = options;
+        this.authBot = authBot;
     }
 
     connect(): void {
@@ -149,5 +162,6 @@ export class DiscordEndpoint extends EventEmitter implements IEndpoint {
         return new DiscordUser(this, this.client.user);
     }
     client:Discord.Client;
-    config:EndpointConfig
+    config:EndpointConfig;
+    authBot:IAuthable;
 }

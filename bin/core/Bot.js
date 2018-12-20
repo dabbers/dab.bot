@@ -7,6 +7,15 @@ const IrcEndpoint_1 = require("./endpoints/IrcEndpoint");
 const TelegramEndpoint_1 = require("./endpoints/TelegramEndpoint");
 const DiscordEndpoint_1 = require("./endpoints/DiscordEndpoint");
 class Bot extends EventEmitter {
+    loginUser(message) {
+        throw new Error("Method not implemented.");
+    }
+    isUserAuthed(message) {
+        throw new Error("Method not implemented.");
+    }
+    logoutUser(message) {
+        throw new Error("Method not implemented.");
+    }
     constructor(config) {
         super();
         this.config = config;
@@ -18,20 +27,21 @@ class Bot extends EventEmitter {
             let ep = this.config.endpoints[i];
             let endpointKey = ep.name || ep.type.toString();
             let endpoint = null;
-            if (this.endpoints[endpointKey])
-                throw "Duplicate endpoint: '" + endpointKey + "'. Specifying a unique name will resolve this.";
+            if (this.endpoints[endpointKey]) {
+                throw new Error("Duplicate endpoint: '" + endpointKey + "'. Specifying a unique name will resolve this.");
+            }
             switch (ep.type) {
                 case EndpointTypes_1.EndpointTypes.IRC:
-                    endpoint = new IrcEndpoint_1.IrcEndpoint(ep);
+                    endpoint = new IrcEndpoint_1.IrcEndpoint(ep, this);
                     break;
                 case EndpointTypes_1.EndpointTypes.Telegram:
-                    endpoint = new TelegramEndpoint_1.TelegramEndpoint(ep);
+                    endpoint = new TelegramEndpoint_1.TelegramEndpoint(ep, this);
                     break;
                 case EndpointTypes_1.EndpointTypes.Discord:
-                    endpoint = new DiscordEndpoint_1.DiscordEndpoint(ep);
+                    endpoint = new DiscordEndpoint_1.DiscordEndpoint(ep, this);
                     break;
                 default:
-                    throw "Missing endpoint type: " + ep.type.toString();
+                    throw new Error("Missing endpoint type: " + ep.type.toString());
             }
             this.endpoints[endpointKey] = endpoint;
             for (let name in ep.modules) {
@@ -92,7 +102,7 @@ class Bot extends EventEmitter {
         }
         let mod = require(module);
         if (!mod.init)
-            throw "Module missing init";
+            throw new Error("Module missing init");
         if (this.config.modules.indexOf(module) == -1) {
             this.config.modules.push(module);
         }

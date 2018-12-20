@@ -8,5 +8,7 @@ export interface IChannel {
     action(message:string):void;
     part():void;
 
-    discriminator: 'CORE.IChannel';
+    userHasRole(user:IUser, role:string):Promise<boolean>;
+
+    discriminator: string;
 }

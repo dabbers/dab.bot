@@ -10,6 +10,7 @@ import {ILeave} from '../Events/ILeave';
 import * as IRC from 'irc-framework';
 
 import{EndpointConfig} from '../config/EndpointConfig';
+import { IAuthable } from "../IAuthable";
 
 export class IrcMessage implements IMessage {
     constructor(ep:IrcEndpoint, from:IUser, target:(IUser | IChannel), message:string) {
@@ -48,11 +49,11 @@ export class IrcMessage implements IMessage {
 class GenericIrcUser {
     nick:string;
     username:string;
-    hostname:string;   
+    hostname:string;
 }
 
 export class IrcUser implements IUser {
-    constructor(endpoint:IrcEndpoint, user:GenericIrcUser|string, ident?:string, host?:string, real?:string) {
+    constructor(endpoint:IrcEndpoint, user:GenericIrcUser|string, ident?:string, host?:string, real?:string, account?:string) {
         this.endpoint = endpoint;
 
         if (typeof user === "string") {
@@ -60,12 +61,14 @@ export class IrcUser implements IUser {
             this.ident = ident;
             this.host = host;
             this.real = real;
+            this.account = account;
         } else {
-            if (ident) throw "Cannot mix GenericUser with extra params";
+            if (ident) throw new Error("Cannot mix GenericUser with extra params");
 
             this.name = user.nick;
             this.ident = user.username;
             this.host = user.hostname;
+            this.account = "";
             this.real = "";
         }
     }
@@ -75,6 +78,7 @@ export class IrcUser implements IUser {
     ident: string;
     host: string;
     real: string;
+    account: string;
 
     say(message: string): void {
         this.endpoint.say(this, message);
@@ -109,6 +113,12 @@ export class IrcChannel implements IChannel {
         this.endpoint.part(<IChannel>this);
     }
 
+    userHasRole(user:IUser, role:string):Promise<boolean> {
+        return new Promise((resolve, reject) => {
+            resolve(false);
+        });
+    }
+
     endpoint: IEndpoint;
 }
 
@@ -119,11 +129,12 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
         return new IrcUser(this, this.client.user.nick, this.client.user.username, this.client.user.host, "");
     }
 
-    constructor(options:EndpointConfig) {
+    constructor(options:EndpointConfig, authBot:IAuthable) {
         super();
 
         this.config = options || null;
         this.client = new IRC.Client();
+        this.authBot = authBot;
     }
 
     say(destination: (IUser | IChannel | string), message: string): void {
@@ -193,8 +204,6 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
         });
         
         this.client.on('message', (event) => {
-            // console.log('<' + event.target + '>', event.message);
-            // console.log(event);
 
             let msg = new IrcMessage(
                 this,
@@ -253,4 +262,5 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
 
     client:any;
     config:EndpointConfig;
+    authBot:IAuthable;
 }
