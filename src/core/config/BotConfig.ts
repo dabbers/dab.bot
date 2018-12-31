@@ -5,4 +5,5 @@ export class BotConfig {
     endpoints: EndpointConfig[];
     storagePath:string;
     modules:string[]; // Global modules
+    rawEvalPrefix: string;
 };

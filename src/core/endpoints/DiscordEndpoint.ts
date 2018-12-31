@@ -25,8 +25,18 @@ export class DiscordMessage implements IMessage {
     get from(): IUser {
         return new DiscordUser(this.endpoint, this.msg.author);
     }
-    isDirectMessage: boolean;
-    target: IUser | IChannel;
+    get isDirectMessage(): boolean {
+        return this.msg.channel.type == "dm";
+    }
+
+    get target(): IUser | IChannel {
+        if (this.isDirectMessage) {
+            return this.endpoint.me;
+        } else {
+            return new DiscordChannel(this.endpoint, <Discord.TextChannel>this.msg.channel);
+        }
+    }
+
     reply(message: string): void {
         this.msg.reply(message);
     }
@@ -43,7 +53,7 @@ export class DiscordMessage implements IMessage {
     msg:Discord.Message;
 
     get discriminator() : string {
-        return "DiscordMessage";
+        return "CORE.DiscordMessage";
     }
 }
 
@@ -61,7 +71,7 @@ export class DiscordUser implements IUser {
         return this.user.id;
     }
 
-    discriminator: "CORE.IUser";
+    discriminator: string = "CORE.DiscordUser";
     say(message: string): void {
         this.user.sendMessage(message);
     }
@@ -98,7 +108,7 @@ export class DiscordChannel implements IChannel {
         });
     }
     
-    discriminator: "CORE.IChannel";
+    discriminator: string = "CORE.DiscordChannel";
     endpoint: DiscordEndpoint;
     chann:Discord.TextChannel;
 }

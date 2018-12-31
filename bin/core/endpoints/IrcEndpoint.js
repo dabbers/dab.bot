@@ -9,7 +9,8 @@ class IrcMessage {
         this.message = message;
         this.from = from;
         this.target = target;
-        this.isDirectMessage = (target.discriminator == "CORE.IUser");
+        this.isDirectMessage = (target.discriminator.indexOf("User") > 0);
+        this.endpoint = ep;
     }
     reply(message) {
         this.endpoint.say((this.isDirectMessage ? this.from : this.target), message);
@@ -26,7 +27,10 @@ class IrcMessage {
         }
     }
     get discriminator() {
-        return "IrcMessage";
+        return "CORE.IrcMessage";
+    }
+    toString() {
+        return "[" + this.discriminator + " Message]";
     }
 }
 exports.IrcMessage = IrcMessage;
@@ -34,6 +38,7 @@ class GenericIrcUser {
 }
 class IrcUser {
     constructor(endpoint, user, ident, host, real, account) {
+        this.discriminator = "CORE.IrcUser";
         this.endpoint = endpoint;
         if (typeof user === "string") {
             this.name = user;
@@ -58,10 +63,14 @@ class IrcUser {
     action(message) {
         this.endpoint.action(this, message);
     }
+    toString() {
+        return "[" + this.name + " " + this.discriminator + " User]";
+    }
 }
 exports.IrcUser = IrcUser;
 class IrcChannel {
     constructor(endpoint, name, topic, user) {
+        this.discriminator = "CORE.IrcChannel";
         this.endpoint = endpoint;
         this.name = name;
         this.topic = topic;
@@ -81,6 +90,9 @@ class IrcChannel {
             resolve(false);
         });
     }
+    toString() {
+        return "[" + this.name + " " + this.discriminator + " Channel]";
+    }
 }
 exports.IrcChannel = IrcChannel;
 class IrcEndpoint extends events_1.EventEmitter {
@@ -94,11 +106,17 @@ class IrcEndpoint extends events_1.EventEmitter {
         this.authBot = authBot;
     }
     say(destination, message) {
+        let msgParts = message.split("\n");
+        let dst = "";
         if (typeof destination === "string") {
-            this.client.say(destination, message);
+            dst = destination;
         }
         else {
-            this.client.say(destination.name, message);
+            dst = destination.name;
+        }
+        this.client.say(dst, msgParts[0]);
+        for (let i = 1; i < msgParts.length; i++) {
+            this.client.say(dst, "" + msgParts[i]);
         }
     }
     action(destination, message) {
@@ -185,6 +203,9 @@ class IrcEndpoint extends events_1.EventEmitter {
         else {
             this.client.part(channel.name);
         }
+    }
+    toString() {
+        return "[" + this.name + " Endpoint]";
     }
 }
 exports.IrcEndpoint = IrcEndpoint;

@@ -17,8 +17,10 @@ export class IrcMessage implements IMessage {
         this.message = message;
         this.from = from;
         this.target = target;
-        this.isDirectMessage = (target.discriminator == "CORE.IUser");
+        this.isDirectMessage = (target.discriminator.indexOf("User") > 0);
+        this.endpoint = ep;
     }
+    
     message: string;
     from: IUser;
     isDirectMessage: boolean;
@@ -42,7 +44,11 @@ export class IrcMessage implements IMessage {
     endpoint: IEndpoint;
 
     get discriminator() : string {
-        return "IrcMessage";
+        return "CORE.IrcMessage";
+    }
+
+    toString() : string {
+        return "[" + this.discriminator + " Message]";
     }
 }
 
@@ -73,7 +79,7 @@ export class IrcUser implements IUser {
         }
     }
 
-    discriminator: "CORE.IUser";
+    discriminator:string = "CORE.IrcUser";
     name: string;
     ident: string;
     host: string;
@@ -88,6 +94,10 @@ export class IrcUser implements IUser {
     }
 
     endpoint: IEndpoint;
+
+    toString() : string {
+        return "[" + this.name + " " + this.discriminator + " User]";
+    }
 }
 
 export class IrcChannel implements IChannel {
@@ -98,7 +108,7 @@ export class IrcChannel implements IChannel {
         this.users = user;
     }
 
-    discriminator: "CORE.IChannel";
+    discriminator:string = "CORE.IrcChannel";
     users: { [key: string]: IUser; };
     topic: string;
     name: string;
@@ -120,6 +130,10 @@ export class IrcChannel implements IChannel {
     }
 
     endpoint: IEndpoint;
+
+    toString() : string {
+        return "[" + this.name + " " + this.discriminator + " Channel]";
+    }
 }
 
 
@@ -138,11 +152,20 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
     }
 
     say(destination: (IUser | IChannel | string), message: string): void {
+        let msgParts = message.split("\n");
+        let dst = "";
+
         if (typeof destination === "string") {
-            this.client.say(destination, message);
+            dst = destination;
         }
         else {
-            this.client.say(destination.name, message);
+            dst = destination.name;
+        }
+
+        this.client.say(dst, msgParts[0]);
+
+        for(let i = 1; i < msgParts.length; i++) {
+            this.client.say(dst, "" + msgParts[i]);
         }
     }
 
@@ -263,4 +286,8 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
     client:any;
     config:EndpointConfig;
     authBot:IAuthable;
+
+    toString() : string {
+        return "[" + this.name + " Endpoint]";
+    }
 }

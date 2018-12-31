@@ -99,16 +99,16 @@ export class CommandBindOptions {
 export enum CommandAuthTypes {
     
     // Their service assigned account name. If they are not identified, their names are empty.
-    Account = "Account",
+    Account = "account",
 
     // Uses the built-in auth options. Levels 1-3. All users are level 1 by default. Admin/owner is level 3.
-    Level = "Level",
+    Level = "level",
 
     // The "visual" name of the user. NOT SECURE, but easy to validated
-    Name = "Name",
+    Name = "name",
 
     // The assigned role of the user.
-    Role = "Role"
+    Role = "role"
 }
 
 export class CommandAuthOptions {
@@ -188,7 +188,6 @@ export class Command<EventType extends IEvent> {
     auth: CommandAuthOptions[];
 
     async execute(bot:Bot, message:EventType) : Promise<boolean> {
-        
         // Since we have 2 ways to execute our fnc, we need to update the timestamp in 2 places.
         // This is nice and easy code sharing.
         let updateTs = () => {
@@ -256,13 +255,17 @@ export class Command<EventType extends IEvent> {
         };
     }
 
+    toString() : string {
+        return "[" + this.name + " Command]";
+    }
+
     lastUser: Map<IUser, Date>;
     lastEndpoint: Map<IEndpoint, EndpointTimestampCollection>;
     serialize: boolean;
     requireCommandPrefix: boolean;
 
     private _name:string;
-    private fnc:(Bot, IEvent) => any;
+    fnc:(Bot, IEvent) => any;
 }
 
 class EndpointTimestampCollection {

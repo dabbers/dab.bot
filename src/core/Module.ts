@@ -8,7 +8,6 @@ export class Module {
         this.destructCb = destruct;
     }
 
-
     init(bot:Bot, validEndpoint:string, globalModule:boolean):void {
         // TODO: Wrap setInterval and setTimeout
         this.proxyBot = ProxyBot.createProxyBot(bot, validEndpoint);

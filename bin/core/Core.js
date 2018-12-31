@@ -7,20 +7,26 @@ class CoreContext {
         let watchOptions = new WatchWithProxy.WatchOptions();
         let listener = (sender, property, oldval, newval) => {
             console.log("Updated callback! sender: ", sender.toString(), "property:", property, "old:", oldval, "new:", newval);
-            this.config.isDirty = true;
+            // Editing a watched property inside a callback causes an infinite loop!!
+            if (sender.toString() != "Config") {
+                this.config.isDirty = true;
+            }
         };
         let watchedConfig = WatchWithProxy.Watcher.Watch(config, watchOptions, listener);
         this.config = watchedConfig;
     }
     tick() {
-        // The bot might cause some config changes during the tick.
-        // perform the tick later.
+        // The bot.tick() might cause some config changes.
+        // Perform the config.tick() after just in case.
         this.bot.tick();
         this.config.tick();
     }
     init() {
         this.bot = new Bot_1.Bot(this.config.bot);
         this.bot.init();
+    }
+    toString() {
+        return "[core CoreContext]";
     }
 }
 exports.CoreContext = CoreContext;

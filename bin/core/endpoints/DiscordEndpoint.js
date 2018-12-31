@@ -15,6 +15,17 @@ class DiscordMessage {
     get from() {
         return new DiscordUser(this.endpoint, this.msg.author);
     }
+    get isDirectMessage() {
+        return this.msg.channel.type == "dm";
+    }
+    get target() {
+        if (this.isDirectMessage) {
+            return this.endpoint.me;
+        }
+        else {
+            return new DiscordChannel(this.endpoint, this.msg.channel);
+        }
+    }
     reply(message) {
         this.msg.reply(message);
     }
@@ -28,12 +39,13 @@ class DiscordMessage {
         throw new Error("Method not implemented.");
     }
     get discriminator() {
-        return "DiscordMessage";
+        return "CORE.DiscordMessage";
     }
 }
 exports.DiscordMessage = DiscordMessage;
 class DiscordUser {
     constructor(endpoint, user) {
+        this.discriminator = "CORE.DiscordUser";
         this.user = user;
         this.endpoint = endpoint;
     }
@@ -53,6 +65,7 @@ class DiscordUser {
 exports.DiscordUser = DiscordUser;
 class DiscordChannel {
     constructor(endpoint, chann) {
+        this.discriminator = "CORE.DiscordChannel";
         this.endpoint = endpoint;
         this.chann = chann;
     }

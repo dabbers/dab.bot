@@ -11,35 +11,37 @@ exports.EventTracker = EventTracker;
 class ProxyBot extends Bot_1.Bot {
     constructor(realBot) {
         super(realBot.config);
+        this.discriminator = "ProxyBot";
         this.addedCommands = [];
         this.addedEvents = [];
         this.realBot = realBot;
     }
     static createProxyBot(realBot, limitEndpointTo) {
-        return new Proxy(new ProxyBot(realBot), {
+        let proxyBot = new Proxy(new ProxyBot(realBot), {
             get: (proxy, name) => {
                 switch (name) {
                     case "addCommand":
-                        throw new Error("TODO: addCommand for ProxyBot");
+                        return function (cmd) {
+                            proxy.addedCommands.push(cmd.name);
+                            proxy.realBot.addCommand.apply(proxy.realBot, [cmd]);
+                            return proxyBot;
+                        };
                     case "dispose":
                         return function () {
-                            console.log("[ProxyBot.ts] Proxybot dispose");
-                            // proxy.addedCommands.forEach( (v, i, a) => {
-                            //     proxy.realBot.delCommand(v);
-                            // });
+                            proxy.addedCommands.forEach((v, i, a) => {
+                                proxy.realBot.delCommand(v);
+                            });
                             proxy.addedEvents.forEach((v, i, a) => {
                                 proxy.realBot.removeListener(v.event, v.cb);
                             });
                         };
                     case "on":
                         return function (event, fnc) {
-                            console.log("[ProxBot.ts] Todo: Wrap event callback functions in proxy bot");
                             let overrideFnc = (...args) => {
                                 let tryEp = args[0];
-                                console.log("PB on " + (limitEndpointTo || "null"));
-                                console.log(tryEp.name, tryEp.type);
                                 if ((!tryEp.name && !tryEp.type) || (!limitEndpointTo) || (tryEp.name == limitEndpointTo)) {
-                                    fnc.apply(proxy, args);
+                                    console.log("PERFORM FNC");
+                                    fnc.apply(proxyBot, args);
                                 }
                             };
                             proxy.realBot.on(event, overrideFnc);
@@ -56,6 +58,7 @@ class ProxyBot extends Bot_1.Bot {
                 }
             }
         });
+        return proxyBot;
     }
 }
 exports.ProxyBot = ProxyBot;

@@ -14,6 +14,7 @@ import { User } from 'telegram-typings'
 import{EndpointConfig} from '../config/EndpointConfig';
 import { DESTRUCTION } from "dns";
 import { IAuthable } from "../IAuthable";
+import { ExtraReplyMessage } from "telegraf/typings/telegram-types";
 
 export class TelegramMessage implements IMessage {
     constructor(endpoint:TelegramEndpoint, message:Telegram.ContextMessageUpdate) {
@@ -22,7 +23,7 @@ export class TelegramMessage implements IMessage {
         this.fromUser = new TelegramUser(this.endpoint, this.msg.from);
 
         this.msg.getChatMember(this.msg.from.id).then((v) => {
-            
+            console.log("GET CHAT MEMBER TELEGRAM: ", v);
         });
     }
 
@@ -30,7 +31,7 @@ export class TelegramMessage implements IMessage {
         return this.msg.message.text;
     }
     get from(): IUser {
-        return 
+        return this.fromUser;
     }
     get isDirectMessage(): boolean {
         return this.msg.chat.type == "private";
@@ -45,7 +46,7 @@ export class TelegramMessage implements IMessage {
     }
 
     reply(message: string): void {
-        this.msg.reply(message);
+        this.msg.reply(message, <ExtraReplyMessage>{"reply_to_message_id": this.msg.message.message_id});
     }
 
     action(message: string): void {
@@ -67,6 +68,10 @@ export class TelegramMessage implements IMessage {
     get discriminator() : string {
         return "TelegramMessage";
     }
+
+    toString() : string {
+        return "[" + this.discriminator + " Message]";
+    }
 }
 
 export class TelegramUser implements IUser {
@@ -83,7 +88,7 @@ export class TelegramUser implements IUser {
         return this.user.first_name;
     }
 
-    discriminator: "CORE.IUser";
+    discriminator:string = "CORE.TelegramUser";
     say(message: string): void {
         this.endpoint.client.telegram.sendMessage(this.user.id, message);
     }
@@ -92,6 +97,10 @@ export class TelegramUser implements IUser {
     }
     user:User;
     endpoint:TelegramEndpoint;
+
+    toString() : string {
+        return "[" + this.name + " " + this.discriminator + " User]";
+    }
 }
 
 export class TelegramChannel implements IChannel {
@@ -126,9 +135,13 @@ export class TelegramChannel implements IChannel {
         });
     }
 
-    discriminator: "CORE.IChannel";
+    discriminator:string = "CORE.TelegramChannel";
     endpoint: TelegramEndpoint;
     chann:Telegram.ContextMessageUpdate;
+
+    toString() : string {
+        return "[" + this.name + " " + this.discriminator + " Channel]";
+    }
 }
 
 export class TelegramEndpoint extends EventEmitter implements IEndpoint {
@@ -145,6 +158,7 @@ export class TelegramEndpoint extends EventEmitter implements IEndpoint {
 
         this.config = options;
         this.authBot = authBot;
+        this.me = {"name":"??", discriminator:"IUser", account:"??", action:()=>true, say: ()=>true};
     }
 
     connect(): void {
@@ -152,14 +166,14 @@ export class TelegramEndpoint extends EventEmitter implements IEndpoint {
         this.client = new Telegraf(this.config.connectionString[0]);
 
         // Need to understand if this is needed when using polling.
-        // this.client.on('connected_website', () => {
-        //     this.client.telegram.getMe().then((botInfo) => {
-        //         this.me = new TelegramUser(this, botInfo);
-        //         this.emit(EndpointEvents.Connected.toString(), this, this.me);
-        //       }, (reason) => {
-        //           console.error("TELEGRAM ME ERROR: " + JSON.stringify(reason));
-        //     });
-        // });
+        this.client.on('connected_website', () => {
+            this.client.telegram.getMe().then((botInfo) => {
+                this.me = new TelegramUser(this, botInfo);
+                this.emit(EndpointEvents.Connected.toString(), this, this.me);
+              }, (reason) => {
+                  console.error("TELEGRAM ME ERROR: " + JSON.stringify(reason));
+            });
+        });
 
         this.client.on('text', (ctx) => {
             let msg = new TelegramMessage(this, ctx);
@@ -208,6 +222,10 @@ export class TelegramEndpoint extends EventEmitter implements IEndpoint {
     }
     send(msg: IMessage): void {
         throw new Error("Method not implemented.");
+    }
+
+    toString() : string {
+        return "[" + this.name + " TelegramEndpoint Endpoint]";
     }
     
     me: IUser

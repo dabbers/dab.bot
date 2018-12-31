@@ -26,6 +26,9 @@ class Config {
             }
         });
     }
+    toString() {
+        return "Config";
+    }
 }
 exports.Config = Config;
 ;

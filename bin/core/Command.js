@@ -34,8 +34,6 @@ class CommandThrottleOptions {
                 canRun = false;
             }
         }
-        now = new Date();
-        now.setSeconds(now.getSeconds() + this.endpoint);
         if (this.endpoint != -1 && lastEndpoint != null) {
             let throttleExpiration = new Date(lastEndpoint);
             throttleExpiration.setSeconds(throttleExpiration.getSeconds() + this.endpoint);
@@ -82,13 +80,13 @@ exports.CommandBindOptions = CommandBindOptions;
 var CommandAuthTypes;
 (function (CommandAuthTypes) {
     // Their service assigned account name. If they are not identified, their names are empty.
-    CommandAuthTypes["Account"] = "Account";
+    CommandAuthTypes["Account"] = "account";
     // Uses the built-in auth options. Levels 1-3. All users are level 1 by default. Admin/owner is level 3.
-    CommandAuthTypes["Level"] = "Level";
+    CommandAuthTypes["Level"] = "level";
     // The "visual" name of the user. NOT SECURE, but easy to validated
-    CommandAuthTypes["Name"] = "Name";
+    CommandAuthTypes["Name"] = "name";
     // The assigned role of the user.
-    CommandAuthTypes["Role"] = "Role";
+    CommandAuthTypes["Role"] = "role";
 })(CommandAuthTypes = exports.CommandAuthTypes || (exports.CommandAuthTypes = {}));
 class CommandAuthOptions {
     constructor(authType, authValue) {
@@ -129,7 +127,7 @@ class CommandAuthOptions {
 }
 exports.CommandAuthOptions = CommandAuthOptions;
 class Command {
-    constructor(name, fnc, throttle, binding, auths) {
+    constructor(name, fnc, throttle, binding, auths, serialize = true, requireCommandPrefix = true) {
         this._name = name;
         this.throttle = throttle;
         this.binding = binding;
@@ -137,6 +135,8 @@ class Command {
         this.fnc = fnc;
         this.lastUser = new Map();
         this.lastEndpoint = new Map();
+        this.serialize = serialize;
+        this.requireCommandPrefix = requireCommandPrefix;
     }
     get name() {
         return this._name;
@@ -188,6 +188,20 @@ class Command {
             }
             return false;
         });
+    }
+    toJSON() {
+        return {
+            name: this.name,
+            fnc: this.fnc,
+            throttle: this.throttle,
+            binding: this.binding,
+            auth: this.auth,
+            serialize: this.serialize,
+            requireCommandPrefix: this.requireCommandPrefix
+        };
+    }
+    toString() {
+        return "[" + this.name + " Command]";
     }
 }
 exports.Command = Command;

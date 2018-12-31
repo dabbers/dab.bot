@@ -10,13 +10,14 @@ class TelegramMessage {
         this.msg = message;
         this.fromUser = new TelegramUser(this.endpoint, this.msg.from);
         this.msg.getChatMember(this.msg.from.id).then((v) => {
+            console.log("GET CHAT MEMBER TELEGRAM: ", v);
         });
     }
     get message() {
         return this.msg.message.text;
     }
     get from() {
-        return;
+        return this.fromUser;
     }
     get isDirectMessage() {
         return this.msg.chat.type == "private";
@@ -30,7 +31,7 @@ class TelegramMessage {
         }
     }
     reply(message) {
-        this.msg.reply(message);
+        this.msg.reply(message, { "reply_to_message_id": this.msg.message.message_id });
     }
     action(message) {
         this.msg.reply("*" + message + "*");
@@ -44,10 +45,14 @@ class TelegramMessage {
     get discriminator() {
         return "TelegramMessage";
     }
+    toString() {
+        return "[" + this.discriminator + " Message]";
+    }
 }
 exports.TelegramMessage = TelegramMessage;
 class TelegramUser {
     constructor(endpoint, user) {
+        this.discriminator = "CORE.TelegramUser";
         this.endpoint = endpoint;
         this.user = user;
     }
@@ -63,10 +68,14 @@ class TelegramUser {
     action(message) {
         this.say("*" + message + "*");
     }
+    toString() {
+        return "[" + this.name + " " + this.discriminator + " User]";
+    }
 }
 exports.TelegramUser = TelegramUser;
 class TelegramChannel {
     constructor(endpoint, chann) {
+        this.discriminator = "CORE.TelegramChannel";
         this.endpoint = endpoint;
         this.chann = chann;
     }
@@ -89,6 +98,9 @@ class TelegramChannel {
             });
         });
     }
+    toString() {
+        return "[" + this.name + " " + this.discriminator + " Channel]";
+    }
 }
 exports.TelegramChannel = TelegramChannel;
 class TelegramEndpoint extends events_1.EventEmitter {
@@ -102,19 +114,20 @@ class TelegramEndpoint extends events_1.EventEmitter {
         super();
         this.config = options;
         this.authBot = authBot;
+        this.me = { "name": "??", discriminator: "IUser", account: "??", action: () => true, say: () => true };
     }
     connect() {
         console.log("telegram");
         this.client = new telegraf_1.default(this.config.connectionString[0]);
         // Need to understand if this is needed when using polling.
-        // this.client.on('connected_website', () => {
-        //     this.client.telegram.getMe().then((botInfo) => {
-        //         this.me = new TelegramUser(this, botInfo);
-        //         this.emit(EndpointEvents.Connected.toString(), this, this.me);
-        //       }, (reason) => {
-        //           console.error("TELEGRAM ME ERROR: " + JSON.stringify(reason));
-        //     });
-        // });
+        this.client.on('connected_website', () => {
+            this.client.telegram.getMe().then((botInfo) => {
+                this.me = new TelegramUser(this, botInfo);
+                this.emit(IEndpoint_1.EndpointEvents.Connected.toString(), this, this.me);
+            }, (reason) => {
+                console.error("TELEGRAM ME ERROR: " + JSON.stringify(reason));
+            });
+        });
         this.client.on('text', (ctx) => {
             let msg = new TelegramMessage(this, ctx);
             this.emit(IEndpoint_1.EndpointEvents.Message.toString(), this, msg);
@@ -158,6 +171,9 @@ class TelegramEndpoint extends events_1.EventEmitter {
     }
     send(msg) {
         throw new Error("Method not implemented.");
+    }
+    toString() {
+        return "[" + this.name + " TelegramEndpoint Endpoint]";
     }
 }
 exports.TelegramEndpoint = TelegramEndpoint;

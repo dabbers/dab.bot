@@ -17,16 +17,17 @@ import { IAuthable } from './IAuthable';
 import { ManagerConfig } from './config/ManagerConfig';
 import {INameChange} from './Events/INameChange';
 import {IChannel} from './IChannel';
+import { stringify } from 'querystring';
 
 export class Bot extends EventEmitter implements ITickable, IAuthable {
-
+    discriminator:string = "Bot";
     constructor(config:BotConfig) {
         super();
 
         this.config = config;
         this.modules = {};
         this.endpoints = {};
-
+        this.textCommands = {};
         this.auth = new  Map<IEndpoint, Map<string, number>>();
         this.authOptions = new Map<IEndpoint, Manager[]>();
 
@@ -47,13 +48,13 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
         this.on(EndpointEvents.Message, (sender:IEndpoint, msg:IMessage) =>
         {            
             let parts = msg.message.split(" ");
-            let cmd = this.textCommands[parts[0]];
+            let cmd = this.textCommands[parts[0].toLowerCase()];
 
             if (cmd && !cmd.requireCommandPrefix) {
                 cmd.execute(this, msg);
             }
             else if (msg.message[0] == sender.config.commandPrefix) {
-                cmd = this.textCommands[parts[0].substr(1)];
+                cmd = this.textCommands[parts[0].substr(1).toLowerCase()];
 
                 if (cmd) {
                     cmd.execute(this, msg);
@@ -94,6 +95,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
             }
             
             this.authOptions.set(endpoint, ep.managers.map(p => new Manager(p)));
+            this.auth.set(endpoint, new Map<string,number>());
         }
 
         // Some modules may require certain endpoints for init.
@@ -256,7 +258,11 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
                         toTest = message.from.name;
                         if (option.valueRegex.test(toTest)) {
                             level = option.level;
-                            aut.set(message.from.name, level); // Cache for laters
+                            
+                            // We don't want to cache the login info, because not all
+                            // servers broadcast name changes, and IRC doesn't gurantee
+                            // they are signed in to services.
+                            //aut.set(message.from.name, level); // Cache for laters
                             break;
                         }
                     break;
@@ -293,6 +299,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
         if (cmd.serialize) {
             this.txtCmdsDirty = true;
         }
+
         return this;
     }
 
@@ -353,6 +360,10 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
 
     auth: Map<IEndpoint, Map<string, number>>;
     authOptions: Map<IEndpoint, Manager[]>;
+
+    toString() : string {
+        return "[bot Bot]";
+    }
 }
 
 class Manager extends ManagerConfig {

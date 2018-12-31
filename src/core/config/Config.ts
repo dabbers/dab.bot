@@ -36,4 +36,8 @@ export class Config implements ITickable {
             }
         });
     }
+
+    toString() {
+        return "Config";
+    }
 };
