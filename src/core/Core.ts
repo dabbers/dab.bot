@@ -17,7 +17,7 @@ export class CoreContext implements ITickable {
             console.log("Updated callback! sender: ", sender.toString(), "property:", property, "old:", oldval, "new:", newval);
             
             // Editing a watched property inside a callback causes an infinite loop!!
-            if (sender.toString() != "Config") {
+            if (sender.toString() != "[config Config]") {
                 this.config.isDirty = true;
             }
         }

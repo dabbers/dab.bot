@@ -163,6 +163,22 @@ export class Command<EventType extends IEvent> {
         return this._name;
     }
 
+    static Deserialize<EventType extends IEvent>(jsonObject:any) : Command<EventType> {
+        return new Command(
+            jsonObject.name,
+            <any>new Function("bot", "message", jsonObject.fnc.replace(/^function\s+anonymous\(bot,message\s*\)\s*{\s*(.*)\s*}$/s, "$1")),
+            new CommandThrottleOptions(
+                jsonObject.throttle.user, 
+                jsonObject.throttle.channel, 
+                jsonObject.throttle.endpoint
+            ),
+            jsonObject.binding.map(p => new CommandBindOptions(p.binding)),
+            jsonObject.auth.map(p => new CommandAuthOptions(p.authType, p.authValue)),
+            jsonObject.serialize,
+            jsonObject.requireCommandPrefix
+        );
+    }
+
     constructor(
         name:string, 
         fnc:(Bot,IEvent) => any, 
@@ -246,7 +262,7 @@ export class Command<EventType extends IEvent> {
     toJSON() {
         return {
             name:this.name, 
-            fnc:this.fnc,
+            fnc:this.fnc.toString(),
             throttle:this.throttle,
             binding:this.binding,
             auth:this.auth,

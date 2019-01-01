@@ -18,9 +18,12 @@ import { ManagerConfig } from './config/ManagerConfig';
 import {INameChange} from './Events/INameChange';
 import {IChannel} from './IChannel';
 import { stringify } from 'querystring';
+import { ICommandMessage } from './CommandMessage';
 
 export class Bot extends EventEmitter implements ITickable, IAuthable {
     discriminator:string = "Bot";
+    /*const*/ cmdStorage = "";
+
     constructor(config:BotConfig) {
         super();
 
@@ -30,6 +33,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
         this.textCommands = {};
         this.auth = new  Map<IEndpoint, Map<string, number>>();
         this.authOptions = new Map<IEndpoint, Manager[]>();
+        this.cmdStorage = path.join(this.config.storagePath, "botcmd.json");
 
         this.on(EndpointEvents.UserLeave,  (sender:IEndpoint, msg:IEvent) =>
         {
@@ -46,24 +50,72 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
         });
 
         this.on(EndpointEvents.Message, (sender:IEndpoint, msg:IMessage) =>
-        {            
+        {
             let parts = msg.message.split(" ");
-            let cmd = this.textCommands[parts[0].toLowerCase()];
+            let cmdStr = parts[0].toLowerCase();
+
+            // Cast our msg to ICommandMessage so we can add command specific argument info.
+            let cmdMsg = <ICommandMessage>msg;
+
+            cmdMsg.args = parts.slice(1);
+
+            if (parts[0][0] == '@') { // IRC @Name !command
+                if (parts[0].toLowerCase() != '@' + msg.endpoint.me.account.toLowerCase() &&
+                    parts[0].toLowerCase() != '@' + msg.endpoint.me.name.toLowerCase()) {
+                    return;
+                }
+                cmdStr = parts[1].toLowerCase();
+                cmdMsg.args = parts.slice(2);
+            }
+            else if (parts[0][0] == '<') { // Discord: <@account> !command
+                if (cmdStr != '<@' + msg.endpoint.me.account + '>') {
+                    return;
+                }
+                cmdStr = parts[1].toLowerCase();
+                cmdMsg.args = parts.slice(2);
+            }
+            else if (cmdStr == msg.endpoint.me.name.toLowerCase()) { // IRC Name !command (no @ required)
+                cmdStr = parts[1].toLowerCase();
+                cmdMsg.args = parts.slice(2);
+            }
+            else {
+                let indx = parts[0].indexOf("@");
+                if (indx >= 2 && cmdStr.substr(indx) == '@' + msg.endpoint.me.account.toLowerCase()) { // Telegram: /command@account
+                    cmdStr = cmdStr.substr(0, indx);
+                }
+            }
+            
+            cmdMsg.command = cmdStr;
+            console.log("COMMAND STRING: '"+ cmdStr + "'");
+
+            let cmd = this.textCommands[cmdStr];
+            let ctch = (er) => {
+                if (this.isUserAuthed(msg) >= 3) {
+                    sender.say(msg.from, "[Error] " + er);
+                }
+            }
 
             if (cmd && !cmd.requireCommandPrefix) {
-                cmd.execute(this, msg);
+                cmd.execute(this, cmdMsg).catch(ctch);
             }
-            else if (msg.message[0] == sender.config.commandPrefix) {
-                cmd = this.textCommands[parts[0].substr(1).toLowerCase()];
+            else if (cmdStr[0] == sender.config.commandPrefix) {
+                cmd = this.textCommands[cmdStr.substr(1)];
 
                 if (cmd) {
-                    cmd.execute(this, msg);
+                    cmd.execute(this, cmdMsg).catch(ctch);
                 }
             }
         });
     }
 
     init() : void {
+        // Load the commands before other things in case they add commands during init/module load.
+        let deser = JSON.parse(fs.readFileSync(this.cmdStorage).toString());
+        let deserKeys = Object.keys(deser);
+
+        deserKeys.forEach(p => deser[p] = Command.Deserialize<IMessage>(deser[p]));
+        this.textCommands = deser;
+
         for(let i = 0; i < this.config.endpoints.length; i++) {
             let ep = this.config.endpoints[i];
 
@@ -93,7 +145,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
             for(let name in ep.modules) {
                 this.loadModule(name, endpointKey);
             }
-            
+
             this.authOptions.set(endpoint, ep.managers.map(p => new Manager(p)));
             this.auth.set(endpoint, new Map<string,number>());
         }
@@ -162,7 +214,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
         }
 
         mod.init(this, endpoint, false);
-        this.modules[module] = mod;        
+        this.modules[module] = mod;
 
         return this;
     }
@@ -258,7 +310,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
                         toTest = message.from.name;
                         if (option.valueRegex.test(toTest)) {
                             level = option.level;
-                            
+
                             // We don't want to cache the login info, because not all
                             // servers broadcast name changes, and IRC doesn't gurantee
                             // they are signed in to services.
@@ -304,7 +356,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
     }
 
     delCommand(cmd:string) : Bot {
-        
+
         if (!this.textCommands[cmd]) {
             throw new Error("Command does not exist");
         }
@@ -319,7 +371,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
             throw new Error("Command does not exist");
         }
         this.textCommands[cmd.name] = cmd;
-        
+
         if (cmd.serialize) {
             this.txtCmdsDirty = true;
         }
@@ -339,11 +391,12 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
                 }
             }
 
-            let cmdStorage = path.join(this.config.storagePath, "botcmd.json");
+            this.txtCmdsDirty = false;
 
-            fs.writeFile(cmdStorage, JSON.stringify(cmdsToSerialize, null, 4), function (err) {
+            fs.writeFile(this.cmdStorage, JSON.stringify(cmdsToSerialize, null, 4), function (err) {
                 if (err) {
                     console.log("[Bot.ts] There was an issue saving the commands: ", err);
+                    setTimeout(() => this.txtCmdsDirty = true, 2000);
                 }
             });
         }

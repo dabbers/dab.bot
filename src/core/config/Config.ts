@@ -7,19 +7,30 @@ export class Config implements ITickable {
 
     path : string;
     isDirty : boolean = false;
+    bot: BotConfig;
+    modules:string[]; // Global modules
+
+    constructor(cfg?: Config) {
+        if (cfg) {
+            this.path = cfg.path;
+            this.isDirty = false;
+            this.bot = cfg.bot;
+            this.modules = cfg.modules;
+        }
+        else {
+            this.isDirty = true;
+        }
+    }
 
     static init(configPath:string) : Config {
         if (fs.existsSync(configPath)) {
-            return <Config>JSON.parse(fs.readFileSync(configPath).toString());
+            return new Config(JSON.parse(fs.readFileSync(configPath).toString()));
         }
 
         let cfg = new Config();
         cfg.path = configPath;
         return cfg;
     }
-
-    bot: BotConfig;
-    modules:string[]; // Global modules
     
     tick() : void {
         if (this.isDirty) {
@@ -33,11 +44,12 @@ export class Config implements ITickable {
         fs.writeFile(this.path, JSON.stringify(this, null, 4), function (err) {
             if (err) {
                 console.log("[Config.ts] There was an issue saving the config: ", err);
+                setTimeout(() => this.isDirty = true, 2000);
             }
         });
     }
 
     toString() {
-        return "Config";
+        return "[config Config]";
     }
 };

@@ -9,9 +9,6 @@ class TelegramMessage {
         this.endpoint = endpoint;
         this.msg = message;
         this.fromUser = new TelegramUser(this.endpoint, this.msg.from);
-        this.msg.getChatMember(this.msg.from.id).then((v) => {
-            console.log("GET CHAT MEMBER TELEGRAM: ", v);
-        });
     }
     get message() {
         return this.msg.message.text;
@@ -57,7 +54,7 @@ class TelegramUser {
         this.user = user;
     }
     get account() {
-        return this.user.id.toString();
+        return this.user.username.toString();
     }
     get name() {
         return this.user.first_name;

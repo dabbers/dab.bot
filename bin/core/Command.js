@@ -141,6 +141,9 @@ class Command {
     get name() {
         return this._name;
     }
+    static Deserialize(jsonObject) {
+        return new Command(jsonObject.name, new Function("bot", "message", jsonObject.fnc.replace(/^function\s+anonymous\(bot,message\s*\)\s*{\s*(.*)\s*}$/s, "$1")), new CommandThrottleOptions(jsonObject.throttle.user, jsonObject.throttle.channel, jsonObject.throttle.endpoint), jsonObject.binding.map(p => new CommandBindOptions(p.binding)), jsonObject.auth.map(p => new CommandAuthOptions(p.authType, p.authValue)), jsonObject.serialize, jsonObject.requireCommandPrefix);
+    }
     execute(bot, message) {
         return __awaiter(this, void 0, void 0, function* () {
             // Since we have 2 ways to execute our fnc, we need to update the timestamp in 2 places.
@@ -192,7 +195,7 @@ class Command {
     toJSON() {
         return {
             name: this.name,
-            fnc: this.fnc,
+            fnc: this.fnc.toString(),
             throttle: this.throttle,
             binding: this.binding,
             auth: this.auth,

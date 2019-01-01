@@ -31,3 +31,7 @@ node_modules
 # Config Files #
 ################
 config.json
+
+# Storage JSON #
+################
+storage/*.json

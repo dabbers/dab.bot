@@ -6,3 +6,5 @@ let contextCfg = Config.init("config.json");
 
 let core = new Core.CoreContext(contextCfg);
 core.init();
+
+setInterval(() => core.tick(), 600);

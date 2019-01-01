@@ -42,17 +42,17 @@ class IrcUser {
         this.endpoint = endpoint;
         if (typeof user === "string") {
             this.name = user;
-            this.ident = ident;
-            this.host = host;
-            this.real = real;
-            this.account = account;
+            this.ident = ident || "";
+            this.host = host || "";
+            this.real = real || "";
+            this.account = account || "";
         }
         else {
             if (ident)
                 throw new Error("Cannot mix GenericUser with extra params");
             this.name = user.nick;
-            this.ident = user.username;
-            this.host = user.hostname;
+            this.ident = user.username || "";
+            this.host = user.hostname || "";
             this.account = "";
             this.real = "";
         }

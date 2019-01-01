@@ -15,6 +15,7 @@ class Bot extends EventEmitter {
     constructor(config) {
         super();
         this.discriminator = "Bot";
+        /*const*/ this.cmdStorage = "";
         this.txtCmdsDirty = false;
         this.config = config;
         this.modules = {};
@@ -22,6 +23,7 @@ class Bot extends EventEmitter {
         this.textCommands = {};
         this.auth = new Map();
         this.authOptions = new Map();
+        this.cmdStorage = path.join(this.config.storagePath, "botcmd.json");
         this.on(IEndpoint_1.EndpointEvents.UserLeave, (sender, msg) => {
             this.logoutUser(msg);
         });
@@ -34,19 +36,60 @@ class Bot extends EventEmitter {
         });
         this.on(IEndpoint_1.EndpointEvents.Message, (sender, msg) => {
             let parts = msg.message.split(" ");
-            let cmd = this.textCommands[parts[0].toLowerCase()];
-            if (cmd && !cmd.requireCommandPrefix) {
-                cmd.execute(this, msg);
+            let cmdStr = parts[0].toLowerCase();
+            // Cast our msg to ICommandMessage so we can add command specific argument info.
+            let cmdMsg = msg;
+            cmdMsg.args = parts.slice(1);
+            if (parts[0][0] == '@') { // IRC @Name !command
+                if (parts[0].toLowerCase() != '@' + msg.endpoint.me.account.toLowerCase() &&
+                    parts[0].toLowerCase() != '@' + msg.endpoint.me.name.toLowerCase()) {
+                    return;
+                }
+                cmdStr = parts[1].toLowerCase();
+                cmdMsg.args = parts.slice(2);
             }
-            else if (msg.message[0] == sender.config.commandPrefix) {
-                cmd = this.textCommands[parts[0].substr(1).toLowerCase()];
+            else if (parts[0][0] == '<') { // Discord: <@account> !command
+                if (cmdStr != '<@' + msg.endpoint.me.account + '>') {
+                    return;
+                }
+                cmdStr = parts[1].toLowerCase();
+                cmdMsg.args = parts.slice(2);
+            }
+            else if (cmdStr == msg.endpoint.me.name.toLowerCase()) { // IRC Name !command (no @ required)
+                cmdStr = parts[1].toLowerCase();
+                cmdMsg.args = parts.slice(2);
+            }
+            else {
+                let indx = parts[0].indexOf("@");
+                if (indx >= 2 && cmdStr.substr(indx) == '@' + msg.endpoint.me.account.toLowerCase()) { // Telegram: /command@account
+                    cmdStr = cmdStr.substr(0, indx);
+                }
+            }
+            cmdMsg.command = cmdStr;
+            console.log("COMMAND STRING: '" + cmdStr + "'");
+            let cmd = this.textCommands[cmdStr];
+            let ctch = (er) => {
+                if (this.isUserAuthed(msg) >= 3) {
+                    sender.say(msg.from, "[Error] " + er);
+                }
+            };
+            if (cmd && !cmd.requireCommandPrefix) {
+                cmd.execute(this, cmdMsg).catch(ctch);
+            }
+            else if (cmdStr[0] == sender.config.commandPrefix) {
+                cmd = this.textCommands[cmdStr.substr(1)];
                 if (cmd) {
-                    cmd.execute(this, msg);
+                    cmd.execute(this, cmdMsg).catch(ctch);
                 }
             }
         });
     }
     init() {
+        // Load the commands before other things in case they add commands during init/module load.
+        let deser = JSON.parse(fs.readFileSync(this.cmdStorage).toString());
+        let deserKeys = Object.keys(deser);
+        deserKeys.forEach(p => deser[p] = Command_1.Command.Deserialize(deser[p]));
+        this.textCommands = deser;
         for (let i = 0; i < this.config.endpoints.length; i++) {
             let ep = this.config.endpoints[i];
             let endpointKey = ep.name || ep.type.toString();
@@ -270,10 +313,11 @@ class Bot extends EventEmitter {
                     cmdsToSerialize[key] = cmd;
                 }
             }
-            let cmdStorage = path.join(this.config.storagePath, "botcmd.json");
-            fs.writeFile(cmdStorage, JSON.stringify(cmdsToSerialize, null, 4), function (err) {
+            this.txtCmdsDirty = false;
+            fs.writeFile(this.cmdStorage, JSON.stringify(cmdsToSerialize, null, 4), function (err) {
                 if (err) {
                     console.log("[Bot.ts] There was an issue saving the commands: ", err);
+                    setTimeout(() => this.txtCmdsDirty = true, 2000);
                 }
             });
         }

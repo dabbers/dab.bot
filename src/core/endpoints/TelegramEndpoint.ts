@@ -21,10 +21,6 @@ export class TelegramMessage implements IMessage {
         this.endpoint = endpoint;
         this.msg = message;
         this.fromUser = new TelegramUser(this.endpoint, this.msg.from);
-
-        this.msg.getChatMember(this.msg.from.id).then((v) => {
-            console.log("GET CHAT MEMBER TELEGRAM: ", v);
-        });
     }
 
     get message(): string {
@@ -81,7 +77,7 @@ export class TelegramUser implements IUser {
     }
 
     get account() : string {
-        return this.user.id.toString();
+        return this.user.username.toString();
     }
 
     get name(): string {

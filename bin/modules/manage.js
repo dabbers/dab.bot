@@ -36,9 +36,9 @@ module.exports = new Module_1.Module((bot, global) => {
         }
     }, new Command_1.CommandThrottleOptions(10, -1, -1), [], [], false, false)).addCommand(new Command_1.Command("addcmd", (b, m) => {
         try {
-            let parts = m.message.split(" ");
-            let cmd = (parts[1] || "").toLowerCase();
-            let code = fncTemplate.replace("{code}", parts.splice(2).join(" "));
+            let parts = m.args;
+            let cmd = (parts[0] || "").toLowerCase();
+            let code = fncTemplate.replace("{code}", parts.splice(1).join(" "));
             if (!cmd) {
                 return m.reply("[Error] Please specify a command, or help");
             }
@@ -61,8 +61,8 @@ module.exports = new Module_1.Module((bot, global) => {
         }
     }, new Command_1.CommandThrottleOptions(-1, -1, -1), [], [new Command_1.CommandAuthOptions(Command_1.CommandAuthTypes.Level, "3")], false)).addCommand(new Command_1.Command("delcmd", (b, m) => {
         try {
-            let parts = m.message.split(" ");
-            let cmd = (parts[1] || "").toLowerCase();
+            let parts = m.args;
+            let cmd = (parts[0] || "").toLowerCase();
             if (!cmd) {
                 return m.reply("[Error] Please specify a command");
             }
@@ -83,9 +83,9 @@ module.exports = new Module_1.Module((bot, global) => {
         }
     }, new Command_1.CommandThrottleOptions(-1, -1, -1), [], [new Command_1.CommandAuthOptions(Command_1.CommandAuthTypes.Level, "3")], false)).addCommand(new Command_1.Command("setcmd", (b, m) => {
         try {
-            let parts = m.message.split(" ");
-            let cmdName = (parts[1] || "").toLowerCase();
-            let propName = (parts[2] || "").toLowerCase();
+            let parts = m.args;
+            let cmdName = (parts[0] || "").toLowerCase();
+            let propName = (parts[1] || "").toLowerCase();
             let cmd = b.textCommands[cmdName];
             let cmdPrefix = m.endpoint.config.commandPrefix;
             if (!cmd) {
@@ -118,7 +118,7 @@ module.exports = new Module_1.Module((bot, global) => {
                 case "fnc":
                 case "code":
                     {
-                        let code = fncTemplate.replace("{code}", parts.splice(3).join(" "));
+                        let code = fncTemplate.replace("{code}", parts.splice(2).join(" "));
                         try {
                             new Function(code);
                         }
@@ -131,12 +131,12 @@ module.exports = new Module_1.Module((bot, global) => {
                     break;
                 case "throttle":
                     {
-                        let operation = (parts[3] || "").toLowerCase();
+                        let operation = (parts[2] || "").toLowerCase();
                         if (!operation || (operation != "user" && operation != "channel" && operation != "endpoint")) {
                             return m.reply("[Error] Missing throttle option.. " + cmdPrefix +
                                 "setcmd <CommandName> throttle <user/channel/endpoint> <number (-1 means no limit)>");
                         }
-                        let value = parseInt((parts[4] || ""));
+                        let value = parseInt((parts[3] || ""));
                         if (isNaN(value)) {
                             return m.reply("[Error] Missing throttle value (-1 means no limit): " + cmdPrefix +
                                 "setcmd <CommandName> throttle <user/channel/endpoint> <seconds between calls>");
@@ -146,13 +146,13 @@ module.exports = new Module_1.Module((bot, global) => {
                     break;
                 case "binding":
                     {
-                        let operation = (parts[3] || "").toLowerCase();
+                        let operation = (parts[2] || "").toLowerCase();
                         if (!operation || (operation != "add" && operation != "remove")) {
                             return m.reply("[Error] Missing throttle option.. " + cmdPrefix +
                                 "setcmd <CommandName> binding <add/remove> <listing index or bind regex of format '#channel@endpoint'>");
                         }
                         if (operation == "add") {
-                            let code = parts.splice(4).join(" ");
+                            let code = parts.splice(3).join(" ");
                             try {
                                 cmd.binding.push(new Command_1.CommandBindOptions(code));
                             }
@@ -161,10 +161,10 @@ module.exports = new Module_1.Module((bot, global) => {
                             }
                         }
                         else if (operation == "remove") {
-                            let index = parseInt(parts[4]);
+                            let index = parseInt(parts[3]);
                             if (isNaN(index) || index < 0 || index >= cmd.binding.length) {
                                 return m.reply("[Error] Invalid bind index. " + cmdPrefix +
-                                    "setcmd <CommandName> binding remove <0-" + (cmd.binding.length - 1).toString() + ">");
+                                    "setcmd <CommandName> binding remove <0-" + (Math.max(cmd.binding.length - 1)).toString() + ">");
                             }
                             cmd.binding.splice(index, 1);
                         }
@@ -172,13 +172,13 @@ module.exports = new Module_1.Module((bot, global) => {
                     break;
                 case "auth":
                     {
-                        let operation = (parts[3] || "").toLowerCase();
+                        let operation = (parts[2] || "").toLowerCase();
                         if (!operation || (operation != "add" && operation != "remove")) {
                             return m.reply("[Error] Missing throttle option.. " + cmdPrefix +
                                 "setcmd <CommandName> auth <add/remove> [args]");
                         }
                         if (operation == "add") {
-                            let authType = (parts[4] || "").toLowerCase();
+                            let authType = (parts[3] || "").toLowerCase();
                             if (!authType ||
                                 (authType != "account" &&
                                     authType != "level" &&
@@ -186,7 +186,7 @@ module.exports = new Module_1.Module((bot, global) => {
                                     authType != "name")) {
                                 return m.reply("[Error] Missing/invalid auth type. Values: account, level, role, name");
                             }
-                            let code = parts.splice(5).join(" ");
+                            let code = parts.splice(4).join(" ");
                             try {
                                 cmd.auth.push(new Command_1.CommandAuthOptions(authType, code));
                             }
@@ -195,18 +195,25 @@ module.exports = new Module_1.Module((bot, global) => {
                             }
                         }
                         else if (operation == "remove") {
-                            let index = parseInt(parts[4]);
-                            if (isNaN(index) || index < 0 || index >= cmd.binding.length) {
+                            let index = parseInt(parts[3]);
+                            if (isNaN(index) || index < 0 || index >= cmd.auth.length) {
                                 return m.reply("[Error] Invalid bind index. " + cmdPrefix +
-                                    "setcmd <CommandName> binding remove <0-" + (cmd.binding.length - 1).toString() + ">");
+                                    "setcmd <CommandName> binding remove <0-" + (Math.max(0, cmd.auth.length - 1)).toString() + ">");
                             }
-                            cmd.binding.splice(index, 1);
+                            cmd.auth.splice(index, 1);
                         }
                     }
                     break;
                 case "serialize":
-                    break;
                 case "requireCommandPrefix":
+                    if (!parts[2]) {
+                        return m.reply("[Error] Must indicate true or false for the value");
+                    }
+                    let val = parts[2].toLowerCase();
+                    if (val != "true" && val != "false") {
+                        return m.reply("[Error] Value must be true or false specifically");
+                    }
+                    cmd[propName] = (val == "true" ? true : false);
                     break;
             }
             b.setCommand(cmd);
@@ -216,9 +223,9 @@ module.exports = new Module_1.Module((bot, global) => {
         }
     }, new Command_1.CommandThrottleOptions(-1, -1, -1), [], [new Command_1.CommandAuthOptions(Command_1.CommandAuthTypes.Level, "3")], false)).addCommand(new Command_1.Command("getcmd", (b, m) => {
         try {
-            let parts = m.message.split(" ");
-            let cmdName = (parts[1] || "").toLowerCase();
-            let propName = (parts[2] || "").toLowerCase();
+            let parts = m.args;
+            let cmdName = (parts[0] || "").toLowerCase();
+            let propName = (parts[1] || "").toLowerCase();
             let cmd = b.textCommands[cmdName];
             let cmdPrefix = m.endpoint.config.commandPrefix;
             if (!cmd) {
@@ -266,7 +273,9 @@ module.exports = new Module_1.Module((bot, global) => {
         }
     }, new Command_1.CommandThrottleOptions(-1, -1, -1), [], [new Command_1.CommandAuthOptions(Command_1.CommandAuthTypes.Level, "3")], false)).addCommand(new Command_1.Command(bot.config.rawEvalPrefix, (b, m) => {
         try {
-            var re = eval(m.message.substr(3));
+            let toExecute = m.args.join(" ");
+            console.log("To Execute: '" + toExecute + "'");
+            var re = eval(toExecute);
             if (re) {
                 m.reply(re.toString());
             }

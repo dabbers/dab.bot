@@ -6,4 +6,5 @@ const Core = require("./core/Core");
 let contextCfg = Config_1.Config.init("config.json");
 let core = new Core.CoreContext(contextCfg);
 core.init();
+setInterval(() => core.tick(), 600);
 //# sourceMappingURL=index.js.map
