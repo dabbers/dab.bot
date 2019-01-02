@@ -1,7 +1,6 @@
 {
     "isDirty": false,
     "path": "config.json",
-    "modules": [],
     "bot": {
         "endpoints": [
             {
@@ -11,23 +10,50 @@
                 ],
                 "nickname": "DiBot",
                 "name": "ggxy",
-                "real": "dab's Bot"
+                "real": "Bot",
+                "commandPrefix": "!",
+                "managers": [
+                    {
+                        "type": "name",
+                        "value": "^dab$",
+                        "level": 3
+                    }
+                ]
             },
             {
                 "type": "Discord",
                 "connectionString": [
-                    "Api.KeyHere"
+                    "*API KEY HERE*"
+                ],
+                "commandPrefix": "!",
+                "managers": [
+                    {
+                        "type": "name",
+                        "value": "^dab$",
+                        "level": 3
+                    }
                 ]
             },
             {
                 "type": "Telegram",
                 "connectionString": [
-                    "Connection:TokenHere"
+                    "*API KEY HERE*"
+                ],
+                "commandPrefix": "/",
+                "managers": [
+                    {
+                        "type": "name",
+                        "value": "^dab$",
+                        "level": 3
+                    }
                 ]
             }
         ],
         "modules": [
+            "../modules/manage",
             "../modules/module1"
-        ]
+        ],
+        "storagePath": "./storage",
+        "rawEvalPrefix": "##"
     }
 }

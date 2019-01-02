@@ -29,7 +29,11 @@ class ProxyBot extends Bot_1.Bot {
                     case "dispose":
                         return function () {
                             proxy.addedCommands.forEach((v, i, a) => {
-                                proxy.realBot.delCommand(v);
+                                // In case a command was already removed, catch the execption
+                                try {
+                                    proxy.realBot.delCommand(v);
+                                }
+                                catch (_a) { }
                             });
                             proxy.addedEvents.forEach((v, i, a) => {
                                 proxy.realBot.removeListener(v.event, v.cb);
@@ -40,7 +44,6 @@ class ProxyBot extends Bot_1.Bot {
                             let overrideFnc = (...args) => {
                                 let tryEp = args[0];
                                 if ((!tryEp.name && !tryEp.type) || (!limitEndpointTo) || (tryEp.name == limitEndpointTo)) {
-                                    console.log("PERFORM FNC");
                                     fnc.apply(proxyBot, args);
                                 }
                             };

@@ -11,6 +11,7 @@ const TelegramEndpoint_1 = require("./endpoints/TelegramEndpoint");
 const DiscordEndpoint_1 = require("./endpoints/DiscordEndpoint");
 const Command_1 = require("./Command");
 const ManagerConfig_1 = require("./config/ManagerConfig");
+const ModuleConfig_1 = require("./config/ModuleConfig");
 class Bot extends EventEmitter {
     constructor(config) {
         super();
@@ -40,7 +41,7 @@ class Bot extends EventEmitter {
             // Cast our msg to ICommandMessage so we can add command specific argument info.
             let cmdMsg = msg;
             cmdMsg.args = parts.slice(1);
-            if (parts[0][0] == '@') { // IRC @Name !command
+            if (parts.length > 1 && parts[0][0] == '@') { // IRC: @Name !command
                 if (parts[0].toLowerCase() != '@' + msg.endpoint.me.account.toLowerCase() &&
                     parts[0].toLowerCase() != '@' + msg.endpoint.me.name.toLowerCase()) {
                     return;
@@ -48,14 +49,14 @@ class Bot extends EventEmitter {
                 cmdStr = parts[1].toLowerCase();
                 cmdMsg.args = parts.slice(2);
             }
-            else if (parts[0][0] == '<') { // Discord: <@account> !command
+            else if (parts.length > 1 && parts[0][0] == '<') { // Discord: <@account> !command
                 if (cmdStr != '<@' + msg.endpoint.me.account + '>') {
                     return;
                 }
                 cmdStr = parts[1].toLowerCase();
                 cmdMsg.args = parts.slice(2);
             }
-            else if (cmdStr == msg.endpoint.me.name.toLowerCase()) { // IRC Name !command (no @ required)
+            else if (parts.length > 1 && cmdStr == msg.endpoint.me.name.toLowerCase()) { // IRC: Name !command (no @ required)
                 cmdStr = parts[1].toLowerCase();
                 cmdMsg.args = parts.slice(2);
             }
@@ -111,8 +112,15 @@ class Bot extends EventEmitter {
                     throw new Error("Missing endpoint type: " + ep.type.toString());
             }
             this.endpoints[endpointKey] = endpoint;
-            for (let name in ep.modules) {
-                this.loadModule(name, endpointKey);
+            if (ep.modules) {
+                for (let name of ep.modules) {
+                    if (typeof name == "string") {
+                        this.loadModule(name, endpoint);
+                    }
+                    else {
+                        this.loadModule(name.file, name.options, endpoint);
+                    }
+                }
             }
             this.authOptions.set(endpoint, ep.managers.map(p => new Manager(p)));
             this.auth.set(endpoint, new Map());
@@ -120,7 +128,13 @@ class Bot extends EventEmitter {
         // Some modules may require certain endpoints for init.
         if (this.config.modules) {
             for (let i = 0; i < this.config.modules.length; i++) {
-                this.loadModule(this.config.modules[i]);
+                let mod = this.config.modules[i];
+                if (typeof mod == "string") {
+                    this.loadModule(mod);
+                }
+                else {
+                    this.loadModule(mod.file, mod.options);
+                }
             }
         }
         // Wait for each endpoint to be created before connecting
@@ -159,23 +173,34 @@ class Bot extends EventEmitter {
             }
         }
     }
-    loadModule(module, endpoint = null) {
+    loadModule(module, cfg = null, endpoint = null) {
         if (this.modules[module]) {
             this.unloadModule(module);
             let keys = Object.keys(require.cache);
+            let filename = path.basename(module) + ".js";
+            console.log("***********", filename, "****************");
             for (let key in keys) {
-                if (key.indexOf(module) >= 0) {
-                    delete require.cache[module];
+                console.log(keys[key]);
+                if (keys[key].endsWith(filename)) {
+                    console.log("REMVING ", keys[key]);
+                    delete require.cache[keys[key]];
+                    break;
                 }
             }
         }
         let mod = require(module);
         if (!mod.init)
             throw new Error("Module missing init");
-        if (this.config.modules.indexOf(module) == -1) {
-            this.config.modules.push(module);
+        if (this.config.modules.filter(p => (typeof p == "string" && p == module) || p.file == module).length == 0) {
+            let m = module;
+            if (cfg) {
+                m = new ModuleConfig_1.ModuleConfig();
+                m.options = cfg;
+                m.file = module;
+            }
+            this.config.modules.push(m);
         }
-        mod.init(this, endpoint, false);
+        mod.init(this, endpoint, cfg || {});
         this.modules[module] = mod;
         return this;
     }

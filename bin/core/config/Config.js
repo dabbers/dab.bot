@@ -8,7 +8,6 @@ class Config {
             this.path = cfg.path;
             this.isDirty = false;
             this.bot = cfg.bot;
-            this.modules = cfg.modules;
         }
         else {
             this.isDirty = true;

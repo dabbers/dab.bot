@@ -1,6 +1,7 @@
 import { EndpointTypes } from "../EndpointTypes";
 import { ChannelConfig } from "./ChannelConfig";
 import { ManagerConfig } from "./ManagerConfig";
+import { ModuleConfig } from "./ModuleConfig";
 
 export class EndpointConfig {
     type:EndpointTypes;
@@ -16,7 +17,7 @@ export class EndpointConfig {
 
     bindIp:string;
 
-    modules:string[];
+    modules:(string|ModuleConfig)[];
 
     channels:ChannelConfig[];
 

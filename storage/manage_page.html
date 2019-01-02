@@ -1,0 +1,34 @@
+<html>
+    <head><title>Command Management</title></head>
+    <body>
+        <div>$output$</div>
+        <form action="/$path$/addcmd" method="POST">
+            Name: <input type="text" name="command" /><br />
+            Code: <textarea name="args"></textarea><br />
+            <input type="submit" value="Add Command" />
+        </form>
+        <br /><hr />
+        <form action="/$path$/delcmd" method="POST">
+            Name: <input type="text" name="command" /><br />
+            <input type="submit" value="Remove Command" />
+        </form>
+        <br /><hr />
+        <form action="/$path$/setcmd" method="POST">
+            Name: <input type="text" name="command" /><br />
+            Arguments: <textarea name="args"></textarea><br />
+            <input type="submit" value="Set Command" />
+        </form>
+        <br /><hr />
+        <form action="/$path$/getcmd" method="POST">
+            Name: <input type="text" name="command" /><br />
+            Arguments: <textarea name="args"></textarea><br />
+            <input type="submit" value="Get Command" />
+        </form>
+        <br /><hr />
+        <form action="/$path$/raw" method="POST">
+            Raw Eval: <textarea name="args"></textarea><br />
+            <input type="submit" value="Raw eval" />
+        </form>
+        <br /><hr />
+    </body>
+</html>

@@ -5,6 +5,11 @@ import { Command, CommandThrottleOptions, CommandAuthOptions, CommandAuthTypes, 
 import { Bot } from '../core/Bot';
 import { IEvent } from '../core/Events/IEvent';
 import { ICommandMessage } from '../core/CommandMessage';
+import * as http from 'http';
+import * as fs from 'fs';
+import { WebApiMessage } from './WebApiMessage';
+import * as qs from 'querystring';
+
 var keys :string[] = [
         //"name", 
         "fnc",
@@ -15,14 +20,20 @@ var keys :string[] = [
         "serialize",
         "requirecommandprefix"
 ];
+var panel = fs.readFileSync('.../../storage/manage_page.html').toString();
 
 var fncTemplate:string = "let m = message; let msg = message;\r\n{code};";
+var rawEval = "";
+var gBot :Bot = null;
 
-module.exports = new Module( (bot, global) => {
+module.exports = new Module( (bot, config) => {
+    gBot = bot;
+    rawEval = bot.config.rawEvalPrefix;
+
     bot.addCommand(
         new Command(
             "login", 
-            (b:Bot, m:IEvent) => {
+            (b:Bot, m:IMessage) => {
                 try {
                     if (!b.loginUser(m)) {
                         (<IMessage>m).reply("Invalid login/password");
@@ -393,3 +404,74 @@ module.exports = new Module( (bot, global) => {
 () => {
     console.log("manage module unloaded");
 });
+
+module.exports.onWebRequest = (req : http.IncomingMessage, res: http.ServerResponse) => {
+    let paths = req.url.substr(1).split('/');
+
+    switch(paths[1]) {
+        case "addcmd":
+        case "delcmd":
+        case "setcmd":
+        case "getcmd": {
+            let cmd = gBot.textCommands[paths[1]];
+            let msg = new WebApiMessage();
+            msg.args = [];
+            msg.command = paths[1];
+
+            let data = '';
+
+            req.on("data", (d) => {
+                data += d;
+
+                if (d.length > 2048) {
+                    req.connection.destroy(451);
+                }
+            });
+
+            req.on("end", () => {
+                var form = qs.parse(data);
+                msg.args.push(<string>form.command);
+                let splitArgs = (<string>form.args).split(' ');
+                for(let word of splitArgs) {
+                    msg.args.push(word);
+                }
+                cmd.fnc(gBot, msg);
+                res.writeHead(200);
+                res.end(panel.replace(/\$output\$/g, msg.response).replace(/\$path\$/g, paths[0]));
+            });
+        }
+        break;
+        case "raw": {
+            let cmd = gBot.textCommands[rawEval];
+            let msg = new WebApiMessage();
+            msg.args = [];
+            msg.command = paths[1];
+
+            let data = '';
+
+            req.on("data", (d) => {
+                data += d;
+
+                if (d.length > 2048) {
+                    req.connection.destroy(451);
+                }
+            });
+
+            req.on("end", () => {
+                var form = qs.parse(data);
+                msg.args.push(<string>form.command);
+                let splitArgs = (<string>form.args).split(' ');
+                for(let word of splitArgs) {
+                    msg.args.push(word);
+                }
+                cmd.fnc(gBot, msg);
+                res.writeHead(200);
+                res.end(panel.replace(/\$output\$/g, msg.response).replace(/\$path\$/g, paths[0]));
+            });
+        }
+        break;
+        default:
+            res.writeHead(200);
+            res.end(panel.replace(/\$output\$/g, "").replace(/\$path\$/g, paths[0]));
+    }
+}

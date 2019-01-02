@@ -3,5 +3,6 @@ export enum EndpointTypes {
     Botframework = "Botframework",
     Discord = "Discord",
     Mattermost = "Mattermost",
-    Telegram = "Telegram"
+    Telegram = "Telegram",
+    Internal = "Internal"
 }

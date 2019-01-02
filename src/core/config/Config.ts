@@ -8,14 +8,12 @@ export class Config implements ITickable {
     path : string;
     isDirty : boolean = false;
     bot: BotConfig;
-    modules:string[]; // Global modules
 
     constructor(cfg?: Config) {
         if (cfg) {
             this.path = cfg.path;
             this.isDirty = false;
             this.bot = cfg.bot;
-            this.modules = cfg.modules;
         }
         else {
             this.isDirty = true;

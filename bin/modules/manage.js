@@ -2,6 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const Module_1 = require("../core/Module");
 const Command_1 = require("../core/Command");
+const fs = require("fs");
+const WebApiMessage_1 = require("./WebApiMessage");
+const qs = require("querystring");
 var keys = [
     //"name", 
     "fnc",
@@ -12,8 +15,13 @@ var keys = [
     "serialize",
     "requirecommandprefix"
 ];
+var panel = fs.readFileSync('.../../storage/manage_page.html').toString();
 var fncTemplate = "let m = message; let msg = message;\r\n{code};";
-module.exports = new Module_1.Module((bot, global) => {
+var rawEval = "";
+var gBot = null;
+module.exports = new Module_1.Module((bot, config) => {
+    gBot = bot;
+    rawEval = bot.config.rawEvalPrefix;
     bot.addCommand(new Command_1.Command("login", (b, m) => {
         try {
             if (!b.loginUser(m)) {
@@ -287,4 +295,67 @@ module.exports = new Module_1.Module((bot, global) => {
 }, () => {
     console.log("manage module unloaded");
 });
+module.exports.onWebRequest = (req, res) => {
+    let paths = req.url.substr(1).split('/');
+    switch (paths[1]) {
+        case "addcmd":
+        case "delcmd":
+        case "setcmd":
+        case "getcmd":
+            {
+                let cmd = gBot.textCommands[paths[1]];
+                let msg = new WebApiMessage_1.WebApiMessage();
+                msg.args = [];
+                msg.command = paths[1];
+                let data = '';
+                req.on("data", (d) => {
+                    data += d;
+                    if (d.length > 2048) {
+                        req.connection.destroy(451);
+                    }
+                });
+                req.on("end", () => {
+                    var form = qs.parse(data);
+                    msg.args.push(form.command);
+                    let splitArgs = form.args.split(' ');
+                    for (let word of splitArgs) {
+                        msg.args.push(word);
+                    }
+                    cmd.fnc(gBot, msg);
+                    res.writeHead(200);
+                    res.end(panel.replace(/\$output\$/g, msg.response).replace(/\$path\$/g, paths[0]));
+                });
+            }
+            break;
+        case "raw":
+            {
+                let cmd = gBot.textCommands[rawEval];
+                let msg = new WebApiMessage_1.WebApiMessage();
+                msg.args = [];
+                msg.command = paths[1];
+                let data = '';
+                req.on("data", (d) => {
+                    data += d;
+                    if (d.length > 2048) {
+                        req.connection.destroy(451);
+                    }
+                });
+                req.on("end", () => {
+                    var form = qs.parse(data);
+                    msg.args.push(form.command);
+                    let splitArgs = form.args.split(' ');
+                    for (let word of splitArgs) {
+                        msg.args.push(word);
+                    }
+                    cmd.fnc(gBot, msg);
+                    res.writeHead(200);
+                    res.end(panel.replace(/\$output\$/g, msg.response).replace(/\$path\$/g, paths[0]));
+                });
+            }
+            break;
+        default:
+            res.writeHead(200);
+            res.end(panel.replace(/\$output\$/g, "").replace(/\$path\$/g, paths[0]));
+    }
+};
 //# sourceMappingURL=manage.js.map

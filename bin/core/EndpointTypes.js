@@ -7,5 +7,6 @@ var EndpointTypes;
     EndpointTypes["Discord"] = "Discord";
     EndpointTypes["Mattermost"] = "Mattermost";
     EndpointTypes["Telegram"] = "Telegram";
+    EndpointTypes["Internal"] = "Internal";
 })(EndpointTypes = exports.EndpointTypes || (exports.EndpointTypes = {}));
 //# sourceMappingURL=EndpointTypes.js.map

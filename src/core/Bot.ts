@@ -19,6 +19,7 @@ import {INameChange} from './Events/INameChange';
 import {IChannel} from './IChannel';
 import { stringify } from 'querystring';
 import { ICommandMessage } from './CommandMessage';
+import { ModuleConfig } from './config/ModuleConfig';
 
 export class Bot extends EventEmitter implements ITickable, IAuthable {
     discriminator:string = "Bot";
@@ -59,7 +60,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
 
             cmdMsg.args = parts.slice(1);
 
-            if (parts[0][0] == '@') { // IRC @Name !command
+            if (parts.length > 1 && parts[0][0] == '@') { // IRC: @Name !command
                 if (parts[0].toLowerCase() != '@' + msg.endpoint.me.account.toLowerCase() &&
                     parts[0].toLowerCase() != '@' + msg.endpoint.me.name.toLowerCase()) {
                     return;
@@ -67,14 +68,14 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
                 cmdStr = parts[1].toLowerCase();
                 cmdMsg.args = parts.slice(2);
             }
-            else if (parts[0][0] == '<') { // Discord: <@account> !command
+            else if (parts.length > 1 && parts[0][0] == '<') { // Discord: <@account> !command
                 if (cmdStr != '<@' + msg.endpoint.me.account + '>') {
                     return;
                 }
                 cmdStr = parts[1].toLowerCase();
                 cmdMsg.args = parts.slice(2);
             }
-            else if (cmdStr == msg.endpoint.me.name.toLowerCase()) { // IRC Name !command (no @ required)
+            else if (parts.length > 1 && cmdStr == msg.endpoint.me.name.toLowerCase()) { // IRC: Name !command (no @ required)
                 cmdStr = parts[1].toLowerCase();
                 cmdMsg.args = parts.slice(2);
             }
@@ -141,9 +142,15 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
             }
 
             this.endpoints[endpointKey] = endpoint;
-
-            for(let name in ep.modules) {
-                this.loadModule(name, endpointKey);
+            if (ep.modules) {
+                for(let name of ep.modules) {
+                    if (typeof name == "string") {
+                        this.loadModule(name, endpoint);
+                    }
+                    else {
+                        this.loadModule(name.file, name.options, endpoint);
+                    }
+                }
             }
 
             this.authOptions.set(endpoint, ep.managers.map(p => new Manager(p)));
@@ -153,7 +160,14 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
         // Some modules may require certain endpoints for init.
         if (this.config.modules) {
             for(let i = 0; i < this.config.modules.length; i++) {
-                this.loadModule(this.config.modules[i]);
+                let mod = this.config.modules[i];
+
+                if (typeof mod == "string") {
+                    this.loadModule(mod);
+                }
+                else {
+                    this.loadModule(mod.file, mod.options);
+                }
             }
         }
 
@@ -194,14 +208,20 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
         }
     }
 
-    loadModule(module:string, endpoint:string = null) : Bot {
+    loadModule(module:string, cfg:any = null, endpoint:string = null) : Bot {
         if (this.modules[module]) {
             this.unloadModule(module);
 
             let keys = Object.keys(require.cache);
+            let filename = path.basename(module) + ".js";
+            console.log("***********", filename, "****************");
+            
             for(let key in keys) {
-                if (key.indexOf(module) >= 0) {
-                    delete require.cache[module];
+                console.log(keys[key]);
+                if (keys[key].endsWith(filename)) {
+                    console.log("REMVING ", keys[key]);
+                    delete require.cache[keys[key]];
+                    break;
                 }
             }
         }
@@ -209,11 +229,18 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
         let mod = <Module>require(module);
         if (!mod.init) throw new Error("Module missing init");
 
-        if (this.config.modules.indexOf(module) == -1) {
-            this.config.modules.push(module);
+        if (this.config.modules.filter(p => (typeof p == "string" && p == module) || (<ModuleConfig>p).file == module).length == 0) {
+            let m : string|ModuleConfig = module;
+            if (cfg) {
+                m = new ModuleConfig();
+                m.options = cfg;
+                m.file = module;
+            }
+
+            this.config.modules.push(m);
         }
 
-        mod.init(this, endpoint, false);
+        mod.init(this, endpoint, cfg || {});
         this.modules[module] = mod;
 
         return this;
@@ -235,7 +262,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
         return this;
     }
 
-    loginUser(message: IEvent): boolean {
+    loginUser(message: IMessage): boolean {
         let aut = this.auth.get(message.endpoint);
         let msg = <IMessage>message;
 
