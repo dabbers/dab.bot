@@ -53,7 +53,8 @@ class ProxyBot extends Bot_1.Bot {
                         };
                     case "endpoints":
                         if (limitEndpointTo) {
-                            return [proxy.realBot.endpoints[limitEndpointTo]];
+                            let ob = {};
+                            ob[limitEndpointTo] = proxy.realBot.endpoints[limitEndpointTo];
                         }
                     // Intentional fallthrough
                     default:

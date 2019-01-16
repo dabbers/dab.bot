@@ -1,17 +1,17 @@
 import {Bot} from "./Bot";
-import {ProxyBot} from "./ProxyBot";
 
 export class Module {
+    ProxyBot = require('./ProxyBot').ProxyBot;
 
-    constructor(init:(bot:Bot, config:any) => any, destruct:()=>any) {
+    constructor(init:(bot:Bot, config:any) => any, destruct:()=>any, webReq:(req,res) => any = null) {
         this.initCb = init;
         this.destructCb = destruct;
         this.intervals = [];
+        this.onWebRequest = webReq;
     }
 
     init(bot:Bot, validEndpoint:string, config:any):void {
-        // TODO: Wrap setInterval and setTimeout
-        this.proxyBot = ProxyBot.createProxyBot(bot, validEndpoint);
+        this.proxyBot = this.ProxyBot.createProxyBot(bot, validEndpoint);
         this.config = config;
 
         if (this.initCb) {
@@ -33,6 +33,8 @@ export class Module {
             }
         }
     }
+    
+    onWebRequest:(req,res)=>any;
 
     destruct():void {
         try {        
@@ -50,8 +52,8 @@ export class Module {
             }
         }
     }
-    onWebRequest: (req, res) => any;
-    protected config:any;
+    
+    config:any;
     private intervals:NodeJS.Timer[];
     private proxyBot : Bot;
     private initCb : (bot:Bot, config:any) => any;

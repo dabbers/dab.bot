@@ -36,6 +36,7 @@ class IrcMessage {
 exports.IrcMessage = IrcMessage;
 class GenericIrcUser {
 }
+exports.GenericIrcUser = GenericIrcUser;
 class IrcUser {
     constructor(endpoint, user, ident, host, real, account) {
         this.discriminator = "CORE.IrcUser";
@@ -106,6 +107,8 @@ class IrcEndpoint extends events_1.EventEmitter {
         this.authBot = authBot;
     }
     say(destination, message) {
+        if (message === undefined || message === null)
+            message = "null";
         let msgParts = message.split("\n");
         let dst = "";
         if (typeof destination === "string") {
@@ -157,7 +160,11 @@ class IrcEndpoint extends events_1.EventEmitter {
         });
         this.client.on('registered', () => {
             console.log('Connected!');
-            this.client.join('#dab.beta');
+            if (this.config.channels) {
+                for (let chan of this.config.channels) {
+                    this.client.join(chan.name, chan.password);
+                }
+            }
             this.emit(IEndpoint_1.EndpointEvents.Connected.toString(), this, this.me);
         });
         this.client.on('close', () => {
@@ -190,10 +197,10 @@ class IrcEndpoint extends events_1.EventEmitter {
     ;
     join(channel, key) {
         if (typeof channel === "string") {
-            this.client.join(channel);
+            this.client.join(channel, key);
         }
         else {
-            this.client.join(channel.name);
+            this.client.join(channel.name, key);
         }
     }
     part(channel) {

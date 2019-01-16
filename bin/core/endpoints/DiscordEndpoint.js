@@ -69,6 +69,9 @@ class DiscordChannel {
         this.endpoint = endpoint;
         this.chann = chann;
     }
+    get name() {
+        return this.chann.name;
+    }
     say(message) {
         this.chann.send(message);
     }
@@ -80,7 +83,12 @@ class DiscordChannel {
     }
     userHasRole(user, role) {
         return new Promise((resolve, reject) => {
-            resolve(this.chann.members.filter(p => p.id == user.account).first().roles.filter(p => p.id == role).size > 0);
+            let users = this.chann.members.filter(p => p.id == user.account);
+            if (!users || users.size == 0)
+                return resolve(false);
+            if (users.first().roles.size == 0)
+                return resolve(false);
+            resolve(users.first().roles.filter(p => p.name == role).size > 0);
         });
     }
 }
@@ -123,10 +131,26 @@ class DiscordEndpoint extends events_1.EventEmitter {
     }
     say(destination, message) {
         if (typeof destination === "string") {
-            this.client.channels.get(destination).send(message);
+            let chan = this.client.channels.get(destination);
+            if (!chan) {
+                chan = this.client.channels.filter((v, k, col) => v.name == destination).first();
+                if (!chan)
+                    throw new Error("Cannot find channel " + destination);
+            }
+            chan.send(message);
         }
         else {
-            this.client.channels.get(destination.name).send(message);
+            let dest = null;
+            // destination HAS to be a discord channel or user
+            if (destination.discriminator.indexOf("Channel") > 0) {
+                let t = destination;
+                dest = this.client.channels.get(t.chann.id);
+            }
+            else {
+                let t = destination;
+                dest = this.client.users.get(t.user.id);
+            }
+            dest.send(message);
         }
     }
     action(destination, message) {

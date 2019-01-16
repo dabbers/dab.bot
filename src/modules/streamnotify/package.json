@@ -1,0 +1,27 @@
+{
+  "name": "streamnotify",
+  "version": "1.0.0",
+  "description": "dab.bot module for video game stream notifications. Supports Twitch webhooks and Mixer notifications",
+  "main": "index.js",
+  "dependencies": {
+    "request": "^2.88.0",
+    "twitch-api-v5": "^2.0.4"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "dab",
+    "bot",
+    "dab.bot",
+    "twitch",
+    "mixer",
+    "notification",
+    "discord",
+    "stream",
+    "game"
+  ],
+  "author": "dab",
+  "license": "MIT"
+}

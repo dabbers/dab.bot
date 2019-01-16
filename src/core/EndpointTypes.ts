@@ -4,5 +4,6 @@ export enum EndpointTypes {
     Discord = "Discord",
     Mattermost = "Mattermost",
     Telegram = "Telegram",
-    Internal = "Internal"
+    Internal = "Internal",
+    Twitch = "Twitch"
 }

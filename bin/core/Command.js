@@ -63,11 +63,13 @@ class CommandBindOptions {
         let target = (event.discriminator.indexOf("Leave") != -1) ? event.target : [event.target];
         let allowedRun = false;
         for (let j in target) {
+            console.log(this.parsed.channel);
             if (this.parsed.channel.test(target[j].name)) {
                 allowedRun = true;
             }
         }
         if (allowedRun && this.parsed.endpoint.test(event.endpoint.name)) {
+            console.log(this.parsed.endpoint);
             return true;
         }
         return false;
@@ -142,7 +144,10 @@ class Command {
         return this._name;
     }
     static Deserialize(jsonObject) {
-        return new Command(jsonObject.name, new Function("bot", "message", jsonObject.fnc.replace(/^function\s+anonymous\(bot,message\s*\)\s*{\s*(.*)\s*}$/s, "$1")), new CommandThrottleOptions(jsonObject.throttle.user, jsonObject.throttle.channel, jsonObject.throttle.endpoint), jsonObject.binding.map(p => new CommandBindOptions(p.binding)), jsonObject.auth.map(p => new CommandAuthOptions(p.authType, p.authValue)), jsonObject.serialize, jsonObject.requireCommandPrefix);
+        return new Command(jsonObject.name, (typeof jsonObject.fnc === "string" ?
+            new Function("bot", "message", "require", jsonObject.fnc.replace(/^function\s+anonymous\(bot,message,require\s*\)\s*{\s*(.*)\s*}$/s, "$1"))
+            :
+                jsonObject.fnc), new CommandThrottleOptions(jsonObject.throttle.user, jsonObject.throttle.channel, jsonObject.throttle.endpoint), jsonObject.binding.map(p => new CommandBindOptions(p.binding)), jsonObject.auth.map(p => new CommandAuthOptions(p.authType, p.authValue)), jsonObject.serialize, jsonObject.requireCommandPrefix);
     }
     execute(bot, message) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -172,24 +177,28 @@ class Command {
                         let res = yield Promise.all(this.auth.map(p => p.canCommandExecute(message))).then((values) => {
                             if (values.filter(b => b == true).length > 0) {
                                 updateTs();
-                                this.fnc(bot, message);
+                                this.fnc(bot, message, require);
                                 return true;
                             }
-                            return false;
+                            console.log("false2");
+                            return new Promise((resolve) => resolve(false));
                         }).catch(p => {
                             console.error("Command.ts error: ", p);
                             throw p;
                         });
-                        return res;
+                        console.log("true2");
+                        return new Promise((resolve) => resolve(res));
                     }
                     else {
+                        console.log("true1");
                         updateTs();
-                        this.fnc(bot, message);
-                        return true;
+                        this.fnc(bot, message, require);
+                        return new Promise((resolve) => resolve(true));
                     }
                 }
             }
-            return false;
+            console.log("false1");
+            return new Promise((resolve) => resolve(false));
         });
     }
     toJSON() {
@@ -220,4 +229,5 @@ class EndpointTimestampCollection {
         this.lastEndpoint = latest;
     }
 }
+exports.EndpointTimestampCollection = EndpointTimestampCollection;
 //# sourceMappingURL=Command.js.map

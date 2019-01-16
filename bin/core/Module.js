@@ -1,15 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const ProxyBot_1 = require("./ProxyBot");
 class Module {
-    constructor(init, destruct) {
+    constructor(init, destruct, webReq = null) {
+        this.ProxyBot = require('./ProxyBot').ProxyBot;
         this.initCb = init;
         this.destructCb = destruct;
         this.intervals = [];
+        this.onWebRequest = webReq;
     }
     init(bot, validEndpoint, config) {
-        // TODO: Wrap setInterval and setTimeout
-        this.proxyBot = ProxyBot_1.ProxyBot.createProxyBot(bot, validEndpoint);
+        this.proxyBot = this.ProxyBot.createProxyBot(bot, validEndpoint);
         this.config = config;
         if (this.initCb) {
             global.oldInterval = global.setInterval;

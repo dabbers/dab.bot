@@ -52,7 +52,7 @@ export class IrcMessage implements IMessage {
     }
 }
 
-class GenericIrcUser {
+export class GenericIrcUser {
     nick:string;
     username:string;
     hostname:string;
@@ -152,6 +152,8 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
     }
 
     say(destination: (IUser | IChannel | string), message: string): void {
+        if (message === undefined || message === null) message = "null"; 
+
         let msgParts = message.split("\n");
         let dst = "";
 
@@ -216,8 +218,13 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
 
         this.client.on('registered', () => {
             console.log('Connected!');
+            
+            if (this.config.channels) {
+                for(let chan of this.config.channels) {
+                    this.client.join(chan.name, chan.password);
+                }
+            }
 
-            this.client.join('#dab.beta');
             this.emit(EndpointEvents.Connected.toString(), this, this.me);
         });
         
@@ -267,10 +274,10 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
 
     join(channel: (IChannel|string), key:string) {
         if (typeof channel === "string") {
-            this.client.join(channel);
+            this.client.join(channel, key);
         }
         else {
-            this.client.join(channel.name);
+            this.client.join(channel.name, key);
         }
     }
 

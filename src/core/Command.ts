@@ -77,12 +77,14 @@ export class CommandBindOptions {
         let allowedRun = false;
 
         for(let j in target) {
+            console.log(this.parsed.channel);
             if (this.parsed.channel.test(target[j].name)) {
                 allowedRun = true;
             }
         }
 
         if (allowedRun && this.parsed.endpoint.test(event.endpoint.name)) {
+            console.log(this.parsed.endpoint);
             return true;
         }
 
@@ -166,7 +168,16 @@ export class Command<EventType extends IEvent> {
     static Deserialize<EventType extends IEvent>(jsonObject:any) : Command<EventType> {
         return new Command(
             jsonObject.name,
-            <any>new Function("bot", "message", jsonObject.fnc.replace(/^function\s+anonymous\(bot,message\s*\)\s*{\s*(.*)\s*}$/s, "$1")),
+            (typeof jsonObject.fnc === "string" ? 
+                <any>new Function(
+                    "bot", 
+                    "message",
+                    "require",
+                    jsonObject.fnc.replace(/^function\s+anonymous\(bot,message,require\s*\)\s*{\s*(.*)\s*}$/s, "$1")
+                )
+            :
+                jsonObject.fnc
+            ),
             new CommandThrottleOptions(
                 jsonObject.throttle.user, 
                 jsonObject.throttle.channel, 
@@ -206,6 +217,7 @@ export class Command<EventType extends IEvent> {
     async execute(bot:Bot, message:EventType) : Promise<boolean> {
         // Since we have 2 ways to execute our fnc, we need to update the timestamp in 2 places.
         // This is nice and easy code sharing.
+        
         let updateTs = () => {
         
             // Update their last used timestamp
@@ -237,26 +249,30 @@ export class Command<EventType extends IEvent> {
                     let res = await Promise.all(this.auth.map(p => p.canCommandExecute(message))).then((values) => {
                         if (values.filter(b => b == true).length > 0) {
                             updateTs();
-                            this.fnc(bot, message);
+                            this.fnc(bot, message, require);
                             return true;
                         }
-                        return false;
+                        console.log("false2");
+                        return new Promise<boolean>( (resolve) => resolve(false));
                     }).catch(p => {
                         console.error("Command.ts error: ", p);
                         throw p;
                     });
 
-                    return res;
+                    console.log("true2");
+                    return new Promise<boolean>( (resolve) => resolve(res));
                 }
                 else {
+                    console.log("true1");
                     updateTs();
-                    this.fnc(bot, message);
-                    return true;
+                    this.fnc(bot, message, require);
+                    return new Promise<boolean>( (resolve) => resolve(true));
                 }
             }
         }
-        
-        return false;
+
+        console.log("false1");
+        return new Promise<boolean>( (resolve) => resolve(false));
     }
 
     toJSON() {
@@ -281,10 +297,10 @@ export class Command<EventType extends IEvent> {
     requireCommandPrefix: boolean;
 
     private _name:string;
-    fnc:(Bot, IEvent) => any;
+    fnc:(bot:Bot, event:IEvent, req:NodeRequire) => any;
 }
 
-class EndpointTimestampCollection {
+export class EndpointTimestampCollection {
     lastEndpoint:Date;
 
     lastChannel: Map<IChannel, Date>;

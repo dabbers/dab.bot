@@ -17,9 +17,23 @@ import { IAuthable } from './IAuthable';
 import { ManagerConfig } from './config/ManagerConfig';
 import {INameChange} from './Events/INameChange';
 import {IChannel} from './IChannel';
-import { stringify } from 'querystring';
 import { ICommandMessage } from './CommandMessage';
 import { ModuleConfig } from './config/ModuleConfig';
+import { TwitchEndpoint } from './endpoints/TwitchEndpoint';
+
+export interface ICommandThrottleOptions {
+    user:number,
+    channel:number,
+    endpoint:number
+}
+export interface ICommandBindOptions {
+    binding:string
+}
+
+export interface ICommandAuthOptions {
+    authType:("account" | "level" | "name" | "role"),
+    authValue:string
+}
 
 export class Bot extends EventEmitter implements ITickable, IAuthable {
     discriminator:string = "Bot";
@@ -85,9 +99,8 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
                     cmdStr = cmdStr.substr(0, indx);
                 }
             }
-            
+    
             cmdMsg.command = cmdStr;
-            console.log("COMMAND STRING: '"+ cmdStr + "'");
 
             let cmd = this.textCommands[cmdStr];
             let ctch = (er) => {
@@ -137,6 +150,8 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
                 case EndpointTypes.Discord:
                     endpoint = new DiscordEndpoint(ep, this);
                     break;
+                case EndpointTypes.Twitch:
+                    endpoint = new TwitchEndpoint(ep, this);
                 default:
                     throw new Error("Missing endpoint type: " + ep.type.toString());
             }
@@ -145,10 +160,10 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
             if (ep.modules) {
                 for(let name of ep.modules) {
                     if (typeof name == "string") {
-                        this.loadModule(name, endpoint);
+                        this.loadModule(name, null, endpointKey);
                     }
                     else {
-                        this.loadModule(name.file, name.options, endpoint);
+                        this.loadModule(name.file, name.options, endpointKey);
                     }
                 }
             }
@@ -209,27 +224,39 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
     }
 
     loadModule(module:string, cfg:any = null, endpoint:string = null) : Bot {
+        console.log("LOAD MODULE", module, endpoint);
         if (this.modules[module]) {
             this.unloadModule(module);
 
             let keys = Object.keys(require.cache);
-            let filename = path.basename(module) + ".js";
-            console.log("***********", filename, "****************");
+            let filename = path.basename(module);
             
-            for(let key in keys) {
-                console.log(keys[key]);
-                if (keys[key].endsWith(filename)) {
-                    console.log("REMVING ", keys[key]);
-                    delete require.cache[keys[key]];
+            for(let key of keys) {
+                if (key.indexOf(filename) > 0) {
+                    delete require.cache[key];
                     break;
                 }
             }
         }
 
-        let mod = <Module>require(module);
-        if (!mod.init) throw new Error("Module missing init");
+        let mod = null;
+        try {
+            mod = <Module>require(module);
+        }
+        catch (ex) {
+            if (ex.message.indexOf("Cannot find module") >= 0) {
+                mod = <Module>require('../modules/' + module);
+            }
+            else {
+                throw ex;
+            }
+        }
 
-        if (this.config.modules.filter(p => (typeof p == "string" && p == module) || (<ModuleConfig>p).file == module).length == 0) {
+        if (!mod.create) throw new Error("Module missing create");
+        mod = mod.create(Module);
+        if (!mod.init) throw new Error("Created module missing init");
+
+        if (!endpoint && this.config.modules.filter(p => (typeof p == "string" && p == module) || (<ModuleConfig>p).file == module).length == 0) {
             let m : string|ModuleConfig = module;
             if (cfg) {
                 m = new ModuleConfig();
@@ -239,11 +266,41 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
 
             this.config.modules.push(m);
         }
+        else if (endpoint) {
+            let ep = this.config.endpoints.filter(p => p.name == endpoint);
+        
+            if (ep.length > 0 && ep[0].
+                modules.filter(p => (typeof p == "string" && p == module) || (<ModuleConfig>p).file == module).length == 0) {
+                
+                
+            }
+        }
 
         mod.init(this, endpoint, cfg || {});
         this.modules[module] = mod;
 
         return this;
+    }
+
+    reloadModule(module:string, endpoint:string = null) {
+        
+        let cfg = null;
+        let modConfig = null;
+
+        if (!endpoint) {
+            modConfig = this.config.modules.filter(p => (typeof p == "string" && p == module) || (<ModuleConfig>p).file == module);
+            console.log("ENDPOINT FREE: ", this.config.modules);
+        }
+        else {
+            modConfig = this.config.endpoints.filter(p => p.name == endpoint)[0].
+                modules.filter(p => (typeof p == "string" && p == module) || (<ModuleConfig>p).file == module);
+        }
+console.log("RELOAD MOD:", modConfig);
+        if (modConfig.length > 0 && typeof modConfig[0] != "string") {
+            cfg = (<ModuleConfig>modConfig[0]).options;
+        }
+
+        this.loadModule(module, cfg, null);
     }
 
     unloadModule(module:string) : Bot {
@@ -270,7 +327,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
             throw new Error("Endpoint authentication sync issue");
         }
 
-        let userAuth = aut.get(message.from.account);
+        let userAuth = aut.get(message.from.name);
 
         // User needs to login.
         if (userAuth == null) {
@@ -368,6 +425,33 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
         return true;
     }
 
+    // This method is used for module who don't have access to import
+    // the command object from the source code (ie: node_modules modules)
+    // Since the location of the Command object isn't exactly known by the module
+    // we don't want a hard reference to it. This method will return that 
+    // reference for us to use when adding commands via addCommand.
+    initNewCommand(
+        name:string, 
+        fnc:(Bot,IEvent) => any, 
+        throttle: ICommandThrottleOptions,
+        binding:ICommandBindOptions[], 
+        auths:ICommandAuthOptions[], 
+        serialize:boolean = true,
+        requireCommandPrefix = true) : Command<IMessage> {
+
+        return Command.Deserialize(
+            {
+                name:name,
+                fnc:fnc,
+                throttle:throttle,
+                binding:binding,
+                auth:auths,
+                serialize:serialize,
+                requireCommandPrefix:requireCommandPrefix
+            }
+        );
+    }
+
     addCommand(cmd:Command<IMessage>) : Bot {
         if (this.textCommands[cmd.name]) {
             throw new Error("Command already exists");
@@ -422,7 +506,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
 
             fs.writeFile(this.cmdStorage, JSON.stringify(cmdsToSerialize, null, 4), function (err) {
                 if (err) {
-                    console.log("[Bot.ts] There was an issue saving the commands: ", err);
+                    console.error("[Bot.ts] There was an issue saving the commands: ", err);
                     setTimeout(() => this.txtCmdsDirty = true, 2000);
                 }
             });
@@ -446,7 +530,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
     }
 }
 
-class Manager extends ManagerConfig {
+export class Manager extends ManagerConfig {
     constructor(cfg:ManagerConfig) {
         super();
 

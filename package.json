@@ -5,11 +5,16 @@
   "main": "index.js",
   "dependencies": {
     "@types/node": "^9.6.1",
+    "cheerio": "^1.0.0-rc.2",
     "discord.js": "^11.4.2",
     "irc-framework": "^2.11.0",
+    "plex-api": "^5.2.1",
+    "refresh-token": "^1.0.0",
+    "request": "^2.88.0",
     "source-map-support": "^0.5.9",
     "telegraf": "^3.24.1",
     "telegram-typings": "^4.0.0-beta",
+    "tmi.js": "^1.2.1",
     "watchwithproxy": "^1.0.0"
   },
   "devDependencies": {},

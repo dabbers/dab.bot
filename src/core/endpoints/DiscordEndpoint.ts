@@ -90,7 +90,10 @@ export class DiscordChannel implements IChannel {
 
     users: { [key: string]: IUser; };
     topic: string;
-    name: string;
+    get name(): string {
+        return this.chann.name;
+    }
+
     say(message: string): void {
         this.chann.send(message);
     }
@@ -104,7 +107,13 @@ export class DiscordChannel implements IChannel {
 
     userHasRole(user:IUser, role:string):Promise<boolean> {
         return new Promise<boolean>((resolve, reject) => {
-            resolve(this.chann.members.filter(p => p.id == user.account).first().roles.filter(p => p.id == role).size > 0);
+
+            let users = this.chann.members.filter(p => p.id == user.account);
+
+            if (!users || users.size == 0) return resolve(false);
+            if (users.first().roles.size == 0) return resolve(false);
+
+            resolve(users.first().roles.filter(p => p.name == role).size > 0);
         });
     }
     
@@ -156,9 +165,27 @@ export class DiscordEndpoint extends EventEmitter implements IEndpoint {
     }
     say(destination: string | IChannel | IUser, message: string): void {
         if (typeof destination === "string") {
-            (<Discord.TextChannel>this.client.channels.get(destination)).send(message);
+            let chan = (<Discord.TextChannel>this.client.channels.get(destination));
+            if (!chan) {
+                chan = (<Discord.TextChannel>this.client.channels.filter( (v, k, col) => (<Discord.TextChannel>v).name == destination).first());
+                if (!chan) throw new Error("Cannot find channel " + destination);
+            }
+
+            chan.send(message);
         } else {
-            (<Discord.TextChannel>this.client.channels.get(destination.name)).send(message);
+            let dest = null;
+            // destination HAS to be a discord channel or user
+            if (destination.discriminator.indexOf("Channel") > 0) {
+                let t = <DiscordChannel>destination;
+                dest = (<Discord.TextChannel>this.client.channels.get(t.chann.id));
+            }
+            else {
+                let t = <DiscordUser>destination;
+                dest = this.client.users.get(t.user.id);
+            }
+
+            dest.send(message);
+            
         }
     }
     action(destination: string | IChannel | IUser, message: string): void {

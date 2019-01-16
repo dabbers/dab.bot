@@ -1,9 +1,9 @@
-import { IChannel } from "../core/IChannel";
-import { IUser } from "../core/IUser";
-import { IEndpoint } from "../core/IEndpoint";
-import { EndpointTypes } from "../core/EndpointTypes";
-import { EndpointConfig } from "../core/config/EndpointConfig";
-import { ICommandMessage } from "../core/CommandMessage";
+import { IChannel } from "../../core/IChannel";
+import { IUser } from "../../core/IUser";
+import { IEndpoint } from "../../core/IEndpoint";
+import { EndpointTypes } from "../../core/EndpointTypes";
+import { EndpointConfig } from "../../core/config/EndpointConfig";
+import { ICommandMessage } from "../../core/CommandMessage";
 
 export class WebApiMessage implements ICommandMessage {
     command: string;

@@ -103,6 +103,7 @@ export class TelegramChannel implements IChannel {
     constructor(endpoint:TelegramEndpoint, chann:Telegram.ContextMessageUpdate) {
         this.endpoint = endpoint;
         this.chann = chann;
+        this.name = this.chann.chat.id.toString();
     }
 
     users: { [key: string]: IUser; };

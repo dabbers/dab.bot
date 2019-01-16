@@ -75,6 +75,7 @@ class TelegramChannel {
         this.discriminator = "CORE.TelegramChannel";
         this.endpoint = endpoint;
         this.chann = chann;
+        this.name = this.chann.chat.id.toString();
     }
     say(message) {
         this.chann.reply(message);

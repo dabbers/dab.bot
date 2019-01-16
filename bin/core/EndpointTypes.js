@@ -8,5 +8,6 @@ var EndpointTypes;
     EndpointTypes["Mattermost"] = "Mattermost";
     EndpointTypes["Telegram"] = "Telegram";
     EndpointTypes["Internal"] = "Internal";
+    EndpointTypes["Twitch"] = "Twitch";
 })(EndpointTypes = exports.EndpointTypes || (exports.EndpointTypes = {}));
 //# sourceMappingURL=EndpointTypes.js.map

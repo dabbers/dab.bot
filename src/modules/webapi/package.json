@@ -1,0 +1,18 @@
+{
+  "name": "dab.bot.modules.webapi",
+  "version": "0.5.1",
+  "description": "Enables an HTTP Server that allows web control of the dab.bot instance.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "dab",
+    "bot",
+    "module",
+    "dab.bot",
+    "dab.bot.module"
+  ],
+  "author": "dab",
+  "license": "MIT"
+}

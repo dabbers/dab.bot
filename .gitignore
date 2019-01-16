@@ -35,3 +35,4 @@ config.json
 # Storage JSON #
 ################
 storage/*.json
+package-lock.json
