@@ -23,6 +23,7 @@ var panel = fs.readFileSync('.../../storage/manage_page.html').toString();
 var fncTemplate:string = "let m = message; let msg = message;\r\n{code};";
 var rawEval = "";
 var gBot :Bot = null;
+const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
 
 module.exports.create = (modType) => { 
     return new modType( (bot, config) => {
@@ -87,7 +88,7 @@ module.exports.create = (modType) => {
                         }
 
                         try {        
-                            new Function(code);
+                            new AsyncFunction(code);
                         }
                         catch(ex) {
                             return m.reply("[Error] Syntax error in command: " + ex);
@@ -97,7 +98,7 @@ module.exports.create = (modType) => {
                             new Command(
                                 cmd, 
                                 // Todo: Find a better way to assign this maybe?
-                                <any>(new Function("bot", "message", "require", code)),
+                                <any>(new AsyncFunction("bot", "message", "require", code)),
                                 new CommandThrottleOptions(-1, -1, -1),
                                 [],
                                 [],
@@ -196,14 +197,14 @@ module.exports.create = (modType) => {
                             case "code": {
                                 let code = fncTemplate.replace("{code}", parts.splice(2).join(" "));
                                 try {        
-                                    new Function(code);
+                                    new AsyncFunction(code);
                                 }
                                 catch(ex) {
                                     return m.reply("[Error] Syntax error in command: " + ex);
                                 }
             
                                 // Todo: Find a better Typescript way to assign this maybe?
-                                cmd.fnc = <any>(new Function("bot", "message", "require", code));
+                                cmd.fnc = <any>(new AsyncFunction("bot", "message", "require", code));
                             }
                             break;
                             case "throttle": {
@@ -379,13 +380,15 @@ module.exports.create = (modType) => {
         ).addCommand(
             new Command(
                 bot.config.rawEvalPrefix, 
-                (b:Bot, m:ICommandMessage) => {
+                async (b:Bot, m:ICommandMessage) => {
+                        
+                    let toExecute = m.args.join(" ");
+
                     try {
                         let msg = m;
                         let message = m;
                         if (msg && message) msg = message;
-                        
-                        let toExecute = m.args.join(" ");
+
                         console.log("To Execute: '" + toExecute + "'");
 
                         var re = eval(toExecute);
@@ -395,7 +398,27 @@ module.exports.create = (modType) => {
                         }
                     }
                     catch(er) {
-                        (<IMessage>m).reply("[Error] " + er);
+                        if (er.message != "await is only valid in async function" && er.message != "Illegal return statement") {
+                            (<IMessage>m).reply("[Error] " + er);
+                        }
+                        else {
+                            try {
+                                
+                                let code = fncTemplate.replace("{code}", toExecute);
+                                
+                                console.log(code);
+
+                                let f =  new AsyncFunction("bot", "message", "require", code);
+                                let re = await f(b, m, require);
+
+                                if (re) {
+                                    m.reply(re.toString());
+                                }
+                            }
+                            catch(exc) {
+                                (<IMessage>m).reply("[Error 0x02] " + exc);
+                            }
+                        }
                     }
                 },
                 new CommandThrottleOptions(-1, -1, -1),
@@ -428,7 +451,7 @@ module.exports.create = (modType) => {
                     data += d;
     
                     if (d.length > 2048) {
-                        req.connection.destroy(451);
+                        req.connection.destroy(new Error("451"));
                     }
                 });
     
@@ -457,7 +480,7 @@ module.exports.create = (modType) => {
                     data += d;
     
                     if (d.length > 2048) {
-                        req.connection.destroy(451);
+                        req.connection.destroy(new Error("451"));
                     }
                 });
     

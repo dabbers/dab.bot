@@ -57,7 +57,7 @@ module.exports.create = (modType) => {
                     data += d;
     
                     if (d.length > 2048) {
-                        req.connection.destroy(451);
+                        req.connection.destroy(new Error("451"));
                     }
                 });
     

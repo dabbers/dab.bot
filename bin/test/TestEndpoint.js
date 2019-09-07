@@ -72,6 +72,9 @@ class TestEndpoint {
     listenerCount(type) {
         throw new Error("Method not implemented.");
     }
+    off(event, listener) {
+        throw new Error("Method not implemented");
+    }
 }
 exports.TestEndpoint = TestEndpoint;
 //# sourceMappingURL=TestEndpoint.js.map

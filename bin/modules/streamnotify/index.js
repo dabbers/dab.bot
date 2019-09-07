@@ -41,7 +41,7 @@ module.exports.create = (modType) => {
                     req.on("data", (d) => {
                         data += d;
                         if (d.length > 2048) {
-                            req.connection.destroy(451);
+                            req.connection.destroy(new Error("451"));
                         }
                     });
                     req.on("end", () => {
@@ -54,7 +54,7 @@ module.exports.create = (modType) => {
                                 gBot.endpoints[gConfig.endpoint].say(gConfig.channel, "GamerGalaxy has stopped streaming.");
                             }
                         }
-                        catch (_a) {
+                        catch {
                             // bleh/
                         }
                         res.writeHead(200);

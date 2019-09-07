@@ -1,13 +1,12 @@
 /// <reference types="node" />
 import { EndpointTypes } from "../EndpointTypes";
-import { IEndpoint } from '../IEndpoint';
+import { IEndpoint, IEndpointBot } from '../IEndpoint';
 import { EventEmitter } from "events";
 import { IChannel } from '../IChannel';
 import { IUser } from '../IUser';
 import { IMessage } from '../Events/IMessage';
 import * as Discord from 'discord.js';
 import { EndpointConfig } from '../config/EndpointConfig';
-import { IAuthable } from "../IAuthable";
 export declare class DiscordMessage implements IMessage {
     constructor(endpoint: DiscordEndpoint, message: Discord.Message);
     readonly message: string;
@@ -50,7 +49,7 @@ export declare class DiscordChannel implements IChannel {
 export declare class DiscordEndpoint extends EventEmitter implements IEndpoint {
     readonly type: EndpointTypes;
     readonly name: string;
-    constructor(options: EndpointConfig, authBot: IAuthable);
+    constructor(options: EndpointConfig, authBot: IEndpointBot);
     connect(): void;
     disconnect(): void;
     readonly isConnected: boolean;
@@ -62,5 +61,5 @@ export declare class DiscordEndpoint extends EventEmitter implements IEndpoint {
     readonly me: IUser;
     client: Discord.Client;
     config: EndpointConfig;
-    authBot: IAuthable;
+    authBot: IEndpointBot;
 }

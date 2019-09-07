@@ -36,3 +36,6 @@ config.json
 ################
 storage/*.json
 package-lock.json
+
+# Certs
+*.pem

@@ -162,6 +162,7 @@ class TwitchEndpoint extends events_1.EventEmitter {
                 return;
             let msg = new TwitchMessage(this, new TwitchUser(this, message["display-name"], message.username, message["user-id"]), (channel[0] == "#" ? new TwitchChannel(this, channel) : this.me), message);
             this.emit(IEndpoint_1.EndpointEvents.Message.toString(), this, msg);
+            this.authBot.onMessage(this, msg);
         });
         this.client.on('message', (event) => {
         });

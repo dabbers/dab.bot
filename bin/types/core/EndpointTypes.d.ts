@@ -1,9 +1,9 @@
 export declare enum EndpointTypes {
     IRC = "IRC",
-    Botframework = "Botframework",
+    BotFramework = "BotFramework",
     Discord = "Discord",
     Mattermost = "Mattermost",
     Telegram = "Telegram",
     Internal = "Internal",
-    Twitch = "Twitch",
+    Twitch = "Twitch"
 }

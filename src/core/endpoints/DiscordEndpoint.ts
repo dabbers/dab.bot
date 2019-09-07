@@ -1,5 +1,5 @@
 import {EndpointTypes} from "../EndpointTypes";
-import {IEndpoint} from '../IEndpoint';
+import {IEndpoint, IEndpointBot} from '../IEndpoint';
 import {EndpointEvents} from '../IEndpoint';
 import {EventEmitter} from "events";
 import {IChannel} from '../IChannel';
@@ -11,6 +11,7 @@ import * as Discord from 'discord.js';
 
 import{EndpointConfig} from '../config/EndpointConfig';
 import { IAuthable } from "../IAuthable";
+import { IEventable } from "../IEventable";
 
 export class DiscordMessage implements IMessage {
     constructor(endpoint:DiscordEndpoint, message:Discord.Message) {
@@ -131,7 +132,7 @@ export class DiscordEndpoint extends EventEmitter implements IEndpoint {
     get name() : string {
         return this.config.name || this.type.toString();
     }
-    constructor(options:EndpointConfig, authBot:IAuthable) {
+    constructor(options:EndpointConfig, authBot:IEndpointBot) {
         super();
 
         this.config = options;
@@ -147,6 +148,13 @@ export class DiscordEndpoint extends EventEmitter implements IEndpoint {
         this.client.on('message', msg => {
             let msg2 = new DiscordMessage(this, msg);
             this.emit(EndpointEvents.Message.toString(), this, msg2);
+            this.authBot.onMessage(this, msg2);
+        });
+        this.client.on('error', err => {
+            console.log(err);
+            if (!this.isConnected) {
+                this.client.login(this.config.connectionString[0]);
+            }
         });
         
         this.client.login(this.config.connectionString[0]);
@@ -200,5 +208,5 @@ export class DiscordEndpoint extends EventEmitter implements IEndpoint {
     }
     client:Discord.Client;
     config:EndpointConfig;
-    authBot:IAuthable;
+    authBot:IEndpointBot;
 }

@@ -14,6 +14,7 @@ const Command_1 = require("./Command");
 const ManagerConfig_1 = require("./config/ManagerConfig");
 const ModuleConfig_1 = require("./config/ModuleConfig");
 const TwitchEndpoint_1 = require("./endpoints/TwitchEndpoint");
+const BotFrameworkEndpoint_1 = require("./endpoints/BotFrameworkEndpoint");
 class Bot extends EventEmitter {
     constructor(config) {
         super();
@@ -27,6 +28,9 @@ class Bot extends EventEmitter {
         this.auth = new Map();
         this.authOptions = new Map();
         this.cmdStorage = path.join(this.config.storagePath, "botcmd.json");
+        this.on(IEndpoint_1.EndpointEvents.Connected, (sender) => {
+            console.log(sender.name, "OnConnected");
+        });
         this.on(IEndpoint_1.EndpointEvents.UserLeave, (sender, msg) => {
             this.logoutUser(msg);
         });
@@ -37,54 +41,76 @@ class Bot extends EventEmitter {
                 this.auth.get(sender).set(msg.newName, level);
             }
         });
-        this.on(IEndpoint_1.EndpointEvents.Message, (sender, msg) => {
-            let parts = msg.message.split(" ");
-            let cmdStr = parts[0].toLowerCase();
-            // Cast our msg to ICommandMessage so we can add command specific argument info.
-            let cmdMsg = msg;
-            cmdMsg.args = parts.slice(1);
-            if (parts.length > 1 && parts[0][0] == '@') { // IRC: @Name !command
-                if (parts[0].toLowerCase() != '@' + msg.endpoint.me.account.toLowerCase() &&
-                    parts[0].toLowerCase() != '@' + msg.endpoint.me.name.toLowerCase()) {
-                    return;
-                }
-                cmdStr = parts[1].toLowerCase();
-                cmdMsg.args = parts.slice(2);
+        // this.on(EndpointEvents.Message, this.onMessage);
+    }
+    async onMessage(sender, msg) {
+        let parts = msg.message.split(" ");
+        let cmdStr = parts[0].toLowerCase();
+        // Cast our msg to ICommandMessage so we can add command specific argument info.
+        let cmdMsg = msg;
+        cmdMsg.args = parts.slice(1);
+        if (parts.length > 1 && parts[0][0] == '@') { // IRC: @Name !command
+            if (parts[0].toLowerCase() != '@' + msg.endpoint.me.account.toLowerCase() &&
+                parts[0].toLowerCase() != '@' + msg.endpoint.me.name.toLowerCase()) {
+                return;
             }
-            else if (parts.length > 1 && parts[0][0] == '<') { // Discord: <@account> !command
-                if (cmdStr != '<@' + msg.endpoint.me.account + '>') {
-                    return;
-                }
-                cmdStr = parts[1].toLowerCase();
-                cmdMsg.args = parts.slice(2);
+            cmdStr = parts[1].toLowerCase();
+            cmdMsg.args = parts.slice(2);
+        }
+        else if (parts.length > 1 && parts[0][0] == '<') { // Discord: <@account> !command
+            if (cmdStr != '<@' + msg.endpoint.me.account + '>') {
+                return;
             }
-            else if (parts.length > 1 && cmdStr == msg.endpoint.me.name.toLowerCase()) { // IRC: Name !command (no @ required)
-                cmdStr = parts[1].toLowerCase();
-                cmdMsg.args = parts.slice(2);
+            cmdStr = parts[1].toLowerCase();
+            cmdMsg.args = parts.slice(2);
+        }
+        else if (parts.length > 1 && cmdStr == msg.endpoint.me.name.toLowerCase()) { // IRC: Name !command (no @ required)
+            cmdStr = parts[1].toLowerCase();
+            cmdMsg.args = parts.slice(2);
+        }
+        else if (parts.length > 0 && cmdStr.indexOf(msg.endpoint.me.name.toLowerCase()) === 0) { // Skype: Name!command
+            if (cmdStr.indexOf(sender.config.commandPrefix) === -1) { // Probably: Name !command
+                if (parts.length > 1) {
+                    cmdStr = parts[1].toLowerCase();
+                    cmdMsg.args = parts.slice(2);
+                }
+                else { // Maybe the bot's name is a command?
+                }
             }
             else {
-                let indx = parts[0].indexOf("@");
-                if (indx >= 2 && cmdStr.substr(indx) == '@' + msg.endpoint.me.account.toLowerCase()) { // Telegram: /command@account
-                    cmdStr = cmdStr.substr(0, indx);
+                // Check for Skype: Name!command
+                if (cmdStr[msg.endpoint.me.name.length] != sender.config.commandPrefix) { // Likely: Name(something)! which is invalid pattern.
+                    return;
                 }
+                cmdStr = parts[0].substr(msg.endpoint.me.name.length);
             }
-            cmdMsg.command = cmdStr;
-            let cmd = this.textCommands[cmdStr];
-            let ctch = (er) => {
-                if (this.isUserAuthed(msg) >= 3) {
-                    sender.say(msg.from, "[Error] " + er);
-                }
-            };
+        }
+        else {
+            let indx = parts[0].indexOf("@");
+            if (indx >= 2 && cmdStr.substr(indx) == '@' + msg.endpoint.me.account.toLowerCase()) { // Telegram: /command@account
+                cmdStr = cmdStr.substr(0, indx);
+            }
+        }
+        cmdMsg.command = cmdStr;
+        let cmd = this.textCommands[cmdStr];
+        try {
+            console.log("BOT1");
             if (cmd && !cmd.requireCommandPrefix) {
-                cmd.execute(this, cmdMsg).catch(ctch);
+                await cmd.execute(this, cmdMsg);
             }
             else if (cmdStr[0] == sender.config.commandPrefix) {
                 cmd = this.textCommands[cmdStr.substr(1)];
                 if (cmd) {
-                    cmd.execute(this, cmdMsg).catch(ctch);
+                    await cmd.execute(this, cmdMsg);
                 }
             }
-        });
+            console.log("BOT2");
+        }
+        catch (er) {
+            if (this.isUserAuthed(msg) >= 3) {
+                sender.say(msg.from, "[Error] " + er);
+            }
+        }
     }
     init() {
         // Load the commands before other things in case they add commands during init/module load.
@@ -111,6 +137,10 @@ class Bot extends EventEmitter {
                     break;
                 case EndpointTypes_1.EndpointTypes.Twitch:
                     endpoint = new TwitchEndpoint_1.TwitchEndpoint(ep, this);
+                    break;
+                case EndpointTypes_1.EndpointTypes.BotFramework:
+                    endpoint = new BotFrameworkEndpoint_1.BotFrameworkEndpoint(ep, this);
+                    break;
                 default:
                     throw new Error("Missing endpoint type: " + ep.type.toString());
             }
@@ -311,19 +341,20 @@ class Bot extends EventEmitter {
                         break;
                     case Command_1.CommandAuthTypes.Account:
                         toTest = message.from.account;
+                        break;
                     case Command_1.CommandAuthTypes.Name:
                         toTest = message.from.name;
-                        if (option.valueRegex.test(toTest)) {
-                            level = option.level;
-                            // We don't want to cache the login info, because not all
-                            // servers broadcast name changes, and IRC doesn't gurantee
-                            // they are signed in to services.
-                            //aut.set(message.from.name, level); // Cache for laters
-                            break;
-                        }
                         break;
                     default:
                         throw new Error("Missing command auth type option");
+                }
+                if (option.valueRegex.test(toTest)) {
+                    level = option.level;
+                    // We don't want to cache the login info, because not all
+                    // servers broadcast name changes, and IRC doesn't gurantee
+                    // they are signed in to services.
+                    //aut.set(message.from.name, level); // Cache for laters
+                    // break;
                 }
                 if (level > 1) {
                     break;

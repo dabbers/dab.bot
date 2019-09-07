@@ -1,5 +1,5 @@
 import {EndpointTypes} from "../EndpointTypes";
-import {IEndpoint} from '../IEndpoint';
+import {IEndpoint, IEndpointBot} from '../IEndpoint';
 import {EndpointEvents} from '../IEndpoint';
 import {EventEmitter} from "events";
 import {IChannel} from '../IChannel';
@@ -150,7 +150,7 @@ export class TelegramEndpoint extends EventEmitter implements IEndpoint {
         return this.config.name || this.type.toString();
     }
 
-    constructor(options:EndpointConfig, authBot:IAuthable) {
+    constructor(options:EndpointConfig, authBot:IEndpointBot) {
         super();
 
         this.config = options;
@@ -159,7 +159,7 @@ export class TelegramEndpoint extends EventEmitter implements IEndpoint {
     }
 
     connect(): void {
-        console.log("telegram");
+        console.log("telegram connect");
         this.client = new Telegraf(this.config.connectionString[0]);
 
         // Need to understand if this is needed when using polling.
@@ -175,6 +175,7 @@ export class TelegramEndpoint extends EventEmitter implements IEndpoint {
         this.client.on('text', (ctx) => {
             let msg = new TelegramMessage(this, ctx);
             this.emit(EndpointEvents.Message.toString(), this, msg);
+            this.authBot.onMessage(this, msg);
         });
 
         (<any>this.client.telegram).deleteWebhook().then( () => {
@@ -228,5 +229,5 @@ export class TelegramEndpoint extends EventEmitter implements IEndpoint {
     me: IUser
     client:Telegram.Telegraf<Telegram.ContextMessageUpdate>;
     config:EndpointConfig;
-    authBot:IAuthable;
+    authBot:IEndpointBot;
 }

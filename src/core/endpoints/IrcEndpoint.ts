@@ -1,5 +1,5 @@
 import {EndpointTypes} from "../EndpointTypes";
-import {IEndpoint} from '../IEndpoint';
+import {IEndpoint, IEndpointBot} from '../IEndpoint';
 import {EndpointEvents} from '../IEndpoint';
 import {EventEmitter} from "events";
 import {IChannel} from '../IChannel';
@@ -27,6 +27,7 @@ export class IrcMessage implements IMessage {
     target: IUser | IChannel;
 
     reply(message: string): void {
+        console.log("irc reply");
         this.endpoint.say((this.isDirectMessage ? this.from : this.target), message);
     }
     action(message: string): void {
@@ -143,7 +144,7 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
         return new IrcUser(this, this.client.user.nick, this.client.user.username, this.client.user.host, "");
     }
 
-    constructor(options:EndpointConfig, authBot:IAuthable) {
+    constructor(options:EndpointConfig, authBot:IEndpointBot) {
         super();
 
         this.config = options || null;
@@ -152,9 +153,10 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
     }
 
     say(destination: (IUser | IChannel | string), message: string): void {
+        console.log("irc reply");
         if (message === undefined || message === null) message = "null"; 
 
-        let msgParts = message.split("\n");
+        let msgParts = message.toString().split("\n");
         let dst = "";
 
         if (typeof destination === "string") {
@@ -234,7 +236,6 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
         });
         
         this.client.on('message', (event) => {
-
             let msg = new IrcMessage(
                 this,
                 new IrcUser(this, <GenericIrcUser>event),
@@ -243,6 +244,7 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
             );
 
             this.emit(EndpointEvents.Message.toString(), this, msg);
+            this.authBot.onMessage(this, msg);
         });
         
         this.client.matchMessage(/^!hi/, (event) => {
@@ -292,7 +294,7 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
 
     client:any;
     config:EndpointConfig;
-    authBot:IAuthable;
+    authBot:IEndpointBot;
 
     toString() : string {
         return "[" + this.name + " Endpoint]";

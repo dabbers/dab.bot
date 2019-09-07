@@ -1,5 +1,5 @@
 import {EndpointTypes} from "../EndpointTypes";
-import {IEndpoint} from '../IEndpoint';
+import {IEndpoint, IEndpointBot} from '../IEndpoint';
 import {EndpointEvents} from '../IEndpoint';
 import {EventEmitter} from "events";
 import {IChannel} from '../IChannel';
@@ -125,7 +125,7 @@ export class TwitchEndpoint extends EventEmitter implements IEndpoint {
         return new TwitchUser(this, this.config.nickname, this.config.nickname, "");
     }
 
-    constructor(options:EndpointConfig, authBot:IAuthable) {
+    constructor(options:EndpointConfig, authBot:IEndpointBot) {
         super();
 
         this.config = options || null;
@@ -228,6 +228,7 @@ export class TwitchEndpoint extends EventEmitter implements IEndpoint {
             );
 
             this.emit(EndpointEvents.Message.toString(), this, msg);
+            this.authBot.onMessage(this, msg);
         });
 
         this.client.on('message', (event) => {
@@ -283,7 +284,7 @@ export class TwitchEndpoint extends EventEmitter implements IEndpoint {
 
     client:any;
     config:EndpointConfig;
-    authBot:IAuthable;
+    authBot:IEndpointBot;
 
     toString() : string {
         return "[" + this.name + " Endpoint]";

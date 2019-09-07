@@ -33,7 +33,7 @@ class ProxyBot extends Bot_1.Bot {
                                 try {
                                     proxy.realBot.delCommand(v);
                                 }
-                                catch (_a) { }
+                                catch { }
                             });
                             proxy.addedEvents.forEach((v, i, a) => {
                                 proxy.realBot.removeListener(v.event, v.cb);

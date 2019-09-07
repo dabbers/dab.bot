@@ -18,6 +18,7 @@ var panel = fs.readFileSync('.../../storage/manage_page.html').toString();
 var fncTemplate = "let m = message; let msg = message;\r\n{code};";
 var rawEval = "";
 var gBot = null;
+const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
 module.exports.create = (modType) => {
     return new modType((bot, config) => {
         gBot = bot;
@@ -54,14 +55,14 @@ module.exports.create = (modType) => {
                     return m.reply("[Error] Help is a reserved word");
                 }
                 try {
-                    new Function(code);
+                    new AsyncFunction(code);
                 }
                 catch (ex) {
                     return m.reply("[Error] Syntax error in command: " + ex);
                 }
                 b.addCommand(new Command_1.Command(cmd, 
                 // Todo: Find a better way to assign this maybe?
-                (new Function("bot", "message", "require", code)), new Command_1.CommandThrottleOptions(-1, -1, -1), [], [], true, true));
+                (new AsyncFunction("bot", "message", "require", code)), new Command_1.CommandThrottleOptions(-1, -1, -1), [], [], true, true));
                 m.reply("[Success] " + cmd + " has been added");
             }
             catch (er) {
@@ -128,13 +129,13 @@ module.exports.create = (modType) => {
                         {
                             let code = fncTemplate.replace("{code}", parts.splice(2).join(" "));
                             try {
-                                new Function(code);
+                                new AsyncFunction(code);
                             }
                             catch (ex) {
                                 return m.reply("[Error] Syntax error in command: " + ex);
                             }
                             // Todo: Find a better Typescript way to assign this maybe?
-                            cmd.fnc = (new Function("bot", "message", "require", code));
+                            cmd.fnc = (new AsyncFunction("bot", "message", "require", code));
                         }
                         break;
                     case "throttle":
@@ -279,13 +280,13 @@ module.exports.create = (modType) => {
             catch (er) {
                 m.reply("[Error] " + er);
             }
-        }, new Command_1.CommandThrottleOptions(-1, -1, -1), [], [new Command_1.CommandAuthOptions(Command_1.CommandAuthTypes.Level, "3")], false)).addCommand(new Command_1.Command(bot.config.rawEvalPrefix, (b, m) => {
+        }, new Command_1.CommandThrottleOptions(-1, -1, -1), [], [new Command_1.CommandAuthOptions(Command_1.CommandAuthTypes.Level, "3")], false)).addCommand(new Command_1.Command(bot.config.rawEvalPrefix, async (b, m) => {
+            let toExecute = m.args.join(" ");
             try {
                 let msg = m;
                 let message = m;
                 if (msg && message)
                     msg = message;
-                let toExecute = m.args.join(" ");
                 console.log("To Execute: '" + toExecute + "'");
                 var re = eval(toExecute);
                 if (re) {
@@ -293,7 +294,23 @@ module.exports.create = (modType) => {
                 }
             }
             catch (er) {
-                m.reply("[Error] " + er);
+                if (er.message != "await is only valid in async function" && er.message != "Illegal return statement") {
+                    m.reply("[Error] " + er);
+                }
+                else {
+                    try {
+                        let code = fncTemplate.replace("{code}", toExecute);
+                        console.log(code);
+                        let f = new AsyncFunction("bot", "message", "require", code);
+                        let re = await f(b, m, require);
+                        if (re) {
+                            m.reply(re.toString());
+                        }
+                    }
+                    catch (exc) {
+                        m.reply("[Error 0x02] " + exc);
+                    }
+                }
             }
         }, new Command_1.CommandThrottleOptions(-1, -1, -1), [], [new Command_1.CommandAuthOptions(Command_1.CommandAuthTypes.Level, "3")], false, false));
     }, () => {
@@ -314,7 +331,7 @@ module.exports.create = (modType) => {
                     req.on("data", (d) => {
                         data += d;
                         if (d.length > 2048) {
-                            req.connection.destroy(451);
+                            req.connection.destroy(new Error("451"));
                         }
                     });
                     req.on("end", () => {
@@ -340,7 +357,7 @@ module.exports.create = (modType) => {
                     req.on("data", (d) => {
                         data += d;
                         if (d.length > 2048) {
-                            req.connection.destroy(451);
+                            req.connection.destroy(new Error("451"));
                         }
                     });
                     req.on("end", () => {

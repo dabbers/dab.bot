@@ -6,6 +6,8 @@ import {IChannel} from './IChannel';
 import {Bot} from './Bot';
 import { IUser } from './IUser';
 
+const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+
 export class CommandThrottleOptions {
     user : number = -1;
     channel : number = -1;
@@ -169,11 +171,11 @@ export class Command<EventType extends IEvent> {
         return new Command(
             jsonObject.name,
             (typeof jsonObject.fnc === "string" ? 
-                <any>new Function(
+                <any>new AsyncFunction(
                     "bot", 
                     "message",
                     "require",
-                    jsonObject.fnc.replace(/^function\s+anonymous\(bot,message,require\s*\)\s*{\s*(.*)\s*}$/s, "$1")
+                    jsonObject.fnc.replace(/^async function\s+anonymous\(bot,message,require\s*\)\s*{\s*(.*)\s*}$/s, "$1")
                 )
             :
                 jsonObject.fnc
@@ -243,36 +245,39 @@ export class Command<EventType extends IEvent> {
                     this.binding.filter(b => b.canCommandExecute(message) === true).length > 0 
                     : true
             );
-
+            console.log("true 2prime");
             if (res) {
+                console.log("true 2primeprime");
                 if (this.auth.length > 0) {
-                    let res = await Promise.all(this.auth.map(p => p.canCommandExecute(message))).then((values) => {
+                    console.log("true 2primeprimeprime");
+                    return new Promise<boolean>( async (resolve) => {
+                        console.log("true2");
+                        let values = await Promise.all(this.auth.map(p => p.canCommandExecute(message)));
                         if (values.filter(b => b == true).length > 0) {
+                            console.log("true2a");
                             updateTs();
-                            this.fnc(bot, message, require);
-                            return true;
+                            await this.fnc(bot, message, require);
+                            resolve(true);
                         }
-                        console.log("false2");
-                        return new Promise<boolean>( (resolve) => resolve(false));
-                    }).catch(p => {
-                        console.error("Command.ts error: ", p);
-                        throw p;
+                        resolve(false);
                     });
-
-                    console.log("true2");
-                    return new Promise<boolean>( (resolve) => resolve(res));
                 }
                 else {
-                    console.log("true1");
-                    updateTs();
-                    this.fnc(bot, message, require);
-                    return new Promise<boolean>( (resolve) => resolve(true));
+                    console.log("false 2primeprime");
+                    return new Promise<boolean>( async (resolve) => {
+                        console.log("true1a");
+                        updateTs();
+                        await this.fnc(bot, message, require);
+                        console.log("true1b");
+                        resolve(true);
+                    });
                 }
             }
         }
 
-        console.log("false1");
-        return new Promise<boolean>( (resolve) => resolve(false));
+        return new Promise<boolean>( (resolve) => {
+            console.log("false1"); resolve(false)
+        });
     }
 
     toJSON() {
@@ -297,7 +302,7 @@ export class Command<EventType extends IEvent> {
     requireCommandPrefix: boolean;
 
     private _name:string;
-    fnc:(bot:Bot, event:IEvent, req:NodeRequire) => any;
+    fnc:(bot:Bot, event:IEvent, req:NodeRequire) => Promise<any>;
 }
 
 export class EndpointTimestampCollection {

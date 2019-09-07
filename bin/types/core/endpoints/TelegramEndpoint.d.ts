@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { EndpointTypes } from "../EndpointTypes";
-import { IEndpoint } from '../IEndpoint';
+import { IEndpoint, IEndpointBot } from '../IEndpoint';
 import { EventEmitter } from "events";
 import { IChannel } from '../IChannel';
 import { IUser } from '../IUser';
@@ -8,7 +8,6 @@ import { IMessage } from '../Events/IMessage';
 import * as Telegram from 'telegraf';
 import { User } from 'telegram-typings';
 import { EndpointConfig } from '../config/EndpointConfig';
-import { IAuthable } from "../IAuthable";
 export declare class TelegramMessage implements IMessage {
     constructor(endpoint: TelegramEndpoint, message: Telegram.ContextMessageUpdate);
     readonly message: string;
@@ -55,7 +54,7 @@ export declare class TelegramChannel implements IChannel {
 export declare class TelegramEndpoint extends EventEmitter implements IEndpoint {
     readonly type: EndpointTypes;
     readonly name: string;
-    constructor(options: EndpointConfig, authBot: IAuthable);
+    constructor(options: EndpointConfig, authBot: IEndpointBot);
     connect(): void;
     disconnect(): void;
     readonly isConnected: boolean;
@@ -68,5 +67,5 @@ export declare class TelegramEndpoint extends EventEmitter implements IEndpoint 
     me: IUser;
     client: Telegram.Telegraf<Telegram.ContextMessageUpdate>;
     config: EndpointConfig;
-    authBot: IAuthable;
+    authBot: IEndpointBot;
 }

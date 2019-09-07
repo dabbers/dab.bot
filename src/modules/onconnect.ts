@@ -7,6 +7,7 @@ import { EndpointTypes } from '../core/EndpointTypes';
 
 class OnConnectCommandConfig {
     command: "join"|"say"|"part"|"raw";
+    delay:number;
     args: string[];
 }
 
@@ -26,7 +27,18 @@ module.exports.create = (modType) => {
                     throw new Error("Expected command structure of cmd.command (join, part, say) and cmd.args string:[]")
                 }
 
-                sender[cmd.command].apply(sender, cmd.args);
+                if (cmd.delay) {
+                    setTimeout(
+                        function(comm) { 
+                            return function() { sender[comm.command].apply(sender, comm.args) };
+                        }(cmd),
+                        cmd.delay
+                    );
+                }
+                else {
+                    sender[cmd.command].apply(sender, cmd.args);
+                }
+                
             }
         });
     },

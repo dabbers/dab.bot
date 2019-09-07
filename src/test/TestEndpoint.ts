@@ -1,4 +1,4 @@
-import {IEndpoint} from '../core/IEndpoint';
+import {IEndpoint, IEndpointBot} from '../core/IEndpoint';
 import {EndpointTypes} from '../core/EndpointTypes';
 import {IChannel} from '../core/IChannel';
 import {IUser} from '../core/IUser';
@@ -80,7 +80,9 @@ export class TestEndpoint implements IEndpoint {
     listenerCount(type: string | symbol): number {
         throw new Error("Method not implemented.");
     }
-
-    authBot:IAuthable;
+    off(event: string | symbol, listener: (...args: any[]) => void): this {
+        throw new Error("Method not implemented");
+    }
+    authBot:IEndpointBot;
     config:EndpointConfig;
 }

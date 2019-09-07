@@ -24,7 +24,7 @@ export declare enum CommandAuthTypes {
     Account = "account",
     Level = "level",
     Name = "name",
-    Role = "role",
+    Role = "role"
 }
 export declare class CommandAuthOptions {
     authType: CommandAuthTypes;
@@ -40,7 +40,7 @@ export declare class CommandAuthOptions {
 export declare class Command<EventType extends IEvent> {
     readonly name: string;
     static Deserialize<EventType extends IEvent>(jsonObject: any): Command<EventType>;
-    constructor(name: string, fnc: (Bot, IEvent) => any, throttle: CommandThrottleOptions, binding: CommandBindOptions[], auths: CommandAuthOptions[], serialize?: boolean, requireCommandPrefix?: boolean);
+    constructor(name: string, fnc: (Bot: any, IEvent: any) => any, throttle: CommandThrottleOptions, binding: CommandBindOptions[], auths: CommandAuthOptions[], serialize?: boolean, requireCommandPrefix?: boolean);
     throttle: CommandThrottleOptions;
     binding: CommandBindOptions[];
     auth: CommandAuthOptions[];
@@ -60,7 +60,7 @@ export declare class Command<EventType extends IEvent> {
     serialize: boolean;
     requireCommandPrefix: boolean;
     private _name;
-    fnc: (bot: Bot, event: IEvent, req: NodeRequire) => any;
+    fnc: (bot: Bot, event: IEvent, req: NodeRequire) => Promise<any>;
 }
 export declare class EndpointTimestampCollection {
     lastEndpoint: Date;

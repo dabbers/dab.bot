@@ -114,6 +114,13 @@ class DiscordEndpoint extends events_1.EventEmitter {
         this.client.on('message', msg => {
             let msg2 = new DiscordMessage(this, msg);
             this.emit(IEndpoint_1.EndpointEvents.Message.toString(), this, msg2);
+            this.authBot.onMessage(this, msg2);
+        });
+        this.client.on('error', err => {
+            console.log(err);
+            if (!this.isConnected) {
+                this.client.login(this.config.connectionString[0]);
+            }
         });
         this.client.login(this.config.connectionString[0]);
     }

@@ -1,13 +1,6 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
+const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
 class CommandThrottleOptions {
     constructor(user, channel, endpoint) {
         this.user = -1;
@@ -99,29 +92,27 @@ class CommandAuthOptions {
             this.authValueRegex = new RegExp(this.authValue);
         }
     }
-    canCommandExecute(event) {
-        return __awaiter(this, void 0, void 0, function* () {
-            switch (this.authType) {
-                case CommandAuthTypes.Account:
-                    return this.authValueRegex.test(event.from.account);
-                case CommandAuthTypes.Level:
-                    return this.authValueRegex.test(event.endpoint.authBot.isUserAuthed(event).toString());
-                case CommandAuthTypes.Name:
-                    return this.authValueRegex.test(event.from.name);
-                case CommandAuthTypes.Role:
-                    // Role auth options are only valid in channel messages= events
-                    let isMessage = (event.discriminator.indexOf("Message") > 0);
-                    if (isMessage) {
-                        let message = event;
-                        if (!message.isDirectMessage) {
-                            let result = yield message.target.userHasRole(message.from, this.authValue);
-                            return result;
-                        }
+    async canCommandExecute(event) {
+        switch (this.authType) {
+            case CommandAuthTypes.Account:
+                return this.authValueRegex.test(event.from.account);
+            case CommandAuthTypes.Level:
+                return this.authValueRegex.test(event.endpoint.authBot.isUserAuthed(event).toString());
+            case CommandAuthTypes.Name:
+                return this.authValueRegex.test(event.from.name);
+            case CommandAuthTypes.Role:
+                // Role auth options are only valid in channel messages= events
+                let isMessage = (event.discriminator.indexOf("Message") > 0);
+                if (isMessage) {
+                    let message = event;
+                    if (!message.isDirectMessage) {
+                        let result = await message.target.userHasRole(message.from, this.authValue);
+                        return result;
                     }
-                    break;
-            }
-            return false;
-        });
+                }
+                break;
+        }
+        return false;
     }
     toJSON() {
         return { authType: this.authType, authValue: this.authValue };
@@ -145,60 +136,64 @@ class Command {
     }
     static Deserialize(jsonObject) {
         return new Command(jsonObject.name, (typeof jsonObject.fnc === "string" ?
-            new Function("bot", "message", "require", jsonObject.fnc.replace(/^function\s+anonymous\(bot,message,require\s*\)\s*{\s*(.*)\s*}$/s, "$1"))
+            new AsyncFunction("bot", "message", "require", jsonObject.fnc.replace(/^async function\s+anonymous\(bot,message,require\s*\)\s*{\s*(.*)\s*}$/s, "$1"))
             :
                 jsonObject.fnc), new CommandThrottleOptions(jsonObject.throttle.user, jsonObject.throttle.channel, jsonObject.throttle.endpoint), jsonObject.binding.map(p => new CommandBindOptions(p.binding)), jsonObject.auth.map(p => new CommandAuthOptions(p.authType, p.authValue)), jsonObject.serialize, jsonObject.requireCommandPrefix);
     }
-    execute(bot, message) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // Since we have 2 ways to execute our fnc, we need to update the timestamp in 2 places.
-            // This is nice and easy code sharing.
-            let updateTs = () => {
-                // Update their last used timestamp
-                let latest = new Date();
-                this.lastUser.set(message.from, latest);
-                this.lastEndpoint.get(message.endpoint).updateTimestamp(message, latest);
-            };
-            let le = this.lastEndpoint.get(message.endpoint);
-            if (le == null) {
-                le = new EndpointTimestampCollection();
-                this.lastEndpoint.set(message.endpoint, le);
-            }
-            let lastChan = null;
-            if (message.discriminator.indexOf("Message") > 0 && message.target.discriminator.indexOf("Channel") > 0) {
-                lastChan = le.lastChannel.get(message.target);
-            }
-            if (this.throttle.canCommandExecute(this.lastUser.get(message.from), lastChan, le.lastEndpoint)) {
-                let res = (this.binding.length > 0 ?
-                    this.binding.filter(b => b.canCommandExecute(message) === true).length > 0
-                    : true);
-                if (res) {
-                    if (this.auth.length > 0) {
-                        let res = yield Promise.all(this.auth.map(p => p.canCommandExecute(message))).then((values) => {
-                            if (values.filter(b => b == true).length > 0) {
-                                updateTs();
-                                this.fnc(bot, message, require);
-                                return true;
-                            }
-                            console.log("false2");
-                            return new Promise((resolve) => resolve(false));
-                        }).catch(p => {
-                            console.error("Command.ts error: ", p);
-                            throw p;
-                        });
+    async execute(bot, message) {
+        // Since we have 2 ways to execute our fnc, we need to update the timestamp in 2 places.
+        // This is nice and easy code sharing.
+        let updateTs = () => {
+            // Update their last used timestamp
+            let latest = new Date();
+            this.lastUser.set(message.from, latest);
+            this.lastEndpoint.get(message.endpoint).updateTimestamp(message, latest);
+        };
+        let le = this.lastEndpoint.get(message.endpoint);
+        if (le == null) {
+            le = new EndpointTimestampCollection();
+            this.lastEndpoint.set(message.endpoint, le);
+        }
+        let lastChan = null;
+        if (message.discriminator.indexOf("Message") > 0 && message.target.discriminator.indexOf("Channel") > 0) {
+            lastChan = le.lastChannel.get(message.target);
+        }
+        if (this.throttle.canCommandExecute(this.lastUser.get(message.from), lastChan, le.lastEndpoint)) {
+            let res = (this.binding.length > 0 ?
+                this.binding.filter(b => b.canCommandExecute(message) === true).length > 0
+                : true);
+            console.log("true 2prime");
+            if (res) {
+                console.log("true 2primeprime");
+                if (this.auth.length > 0) {
+                    console.log("true 2primeprimeprime");
+                    return new Promise(async (resolve) => {
                         console.log("true2");
-                        return new Promise((resolve) => resolve(res));
-                    }
-                    else {
-                        console.log("true1");
+                        let values = await Promise.all(this.auth.map(p => p.canCommandExecute(message)));
+                        if (values.filter(b => b == true).length > 0) {
+                            console.log("true2a");
+                            updateTs();
+                            await this.fnc(bot, message, require);
+                            resolve(true);
+                        }
+                        resolve(false);
+                    });
+                }
+                else {
+                    console.log("false 2primeprime");
+                    return new Promise(async (resolve) => {
+                        console.log("true1a");
                         updateTs();
-                        this.fnc(bot, message, require);
-                        return new Promise((resolve) => resolve(true));
-                    }
+                        await this.fnc(bot, message, require);
+                        console.log("true1b");
+                        resolve(true);
+                    });
                 }
             }
+        }
+        return new Promise((resolve) => {
             console.log("false1");
-            return new Promise((resolve) => resolve(false));
+            resolve(false);
         });
     }
     toJSON() {

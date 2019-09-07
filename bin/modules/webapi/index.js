@@ -1,13 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const http = require("http");
+// import * as http from 'http';
+const https = require("https");
+const fs = require("fs");
 let server = null;
 module.exports.create = (modType) => {
     return new modType((bot, config) => {
-        if (!config || !config.port) {
+        if (!config || !config.port || !config.key || !config.cert) {
             throw new Error("You must provide a config with port and priv/pub key paths");
         }
-        server = http.createServer(function (req, res) {
+        let option = { key: fs.readFileSync(config.key), cert: fs.readFileSync(config.cert) };
+        server = https.createServer(option, function (req, res) {
             let paths = req.url.substr(1).split('/');
             var header = req.headers['authorization'] || '', // get the header
             token = header.split(/\s+/).pop() || '', // and the encoded auth token
@@ -28,14 +31,24 @@ module.exports.create = (modType) => {
                 res.write("</ul>\r\n");
                 res.end("</body></html>");
             }
-            let module = new Buffer(paths[0], 'base64').toString('ascii');
-            let m = bot.modules[module];
-            if (m && m.onWebRequest) {
-                m.onWebRequest(req, res);
+            if (paths[0] == "bfw" || (paths[0] == "api" && (paths[1] == "messages" || paths[1] == "notify"))) {
+                console.log(paths);
+                if (bot.endpoints["BotFramework"]) {
+                    res.send = res.write;
+                    res.status = (st) => res.statusCode = st;
+                    bot.endpoints["BotFramework"].emit("BotFwAPI", req, res);
+                }
             }
             else {
-                res.writeHead(404);
-                res.end("module not found");
+                let module = new Buffer(paths[0], 'base64').toString('ascii');
+                let m = bot.modules[module];
+                if (m && m.onWebRequest) {
+                    m.onWebRequest(req, res);
+                }
+                else {
+                    res.writeHead(404);
+                    res.end("module not found");
+                }
             }
         }).listen(config.port);
     }, () => {

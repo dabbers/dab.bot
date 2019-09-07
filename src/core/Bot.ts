@@ -20,6 +20,8 @@ import {IChannel} from './IChannel';
 import { ICommandMessage } from './CommandMessage';
 import { ModuleConfig } from './config/ModuleConfig';
 import { TwitchEndpoint } from './endpoints/TwitchEndpoint';
+import { BotFrameworkEndpoint } from './endpoints/BotFrameworkEndpoint';
+import { IEventable } from './IEventable';
 
 export interface ICommandThrottleOptions {
     user:number,
@@ -35,7 +37,7 @@ export interface ICommandAuthOptions {
     authValue:string
 }
 
-export class Bot extends EventEmitter implements ITickable, IAuthable {
+export class Bot extends EventEmitter implements ITickable, IAuthable, IEventable {
     discriminator:string = "Bot";
     /*const*/ cmdStorage = "";
 
@@ -50,6 +52,9 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
         this.authOptions = new Map<IEndpoint, Manager[]>();
         this.cmdStorage = path.join(this.config.storagePath, "botcmd.json");
 
+        this.on(EndpointEvents.Connected, (sender:IEndpoint) => {
+            console.log(sender.name, "OnConnected");
+        });
         this.on(EndpointEvents.UserLeave,  (sender:IEndpoint, msg:IEvent) =>
         {
             this.logoutUser(msg);
@@ -64,64 +69,88 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
             }
         });
 
-        this.on(EndpointEvents.Message, (sender:IEndpoint, msg:IMessage) =>
-        {
-            let parts = msg.message.split(" ");
-            let cmdStr = parts[0].toLowerCase();
+        // this.on(EndpointEvents.Message, this.onMessage);
+    }
 
-            // Cast our msg to ICommandMessage so we can add command specific argument info.
-            let cmdMsg = <ICommandMessage>msg;
+    async onMessage (sender:IEndpoint, msg:IMessage) : Promise<void>
+    {
+        let parts = msg.message.split(" ");
+        let cmdStr = parts[0].toLowerCase();
 
-            cmdMsg.args = parts.slice(1);
+        // Cast our msg to ICommandMessage so we can add command specific argument info.
+        let cmdMsg = <ICommandMessage>msg;
 
-            if (parts.length > 1 && parts[0][0] == '@') { // IRC: @Name !command
-                if (parts[0].toLowerCase() != '@' + msg.endpoint.me.account.toLowerCase() &&
-                    parts[0].toLowerCase() != '@' + msg.endpoint.me.name.toLowerCase()) {
-                    return;
-                }
-                cmdStr = parts[1].toLowerCase();
-                cmdMsg.args = parts.slice(2);
+        cmdMsg.args = parts.slice(1);
+
+        if (parts.length > 1 && parts[0][0] == '@') { // IRC: @Name !command
+            if (parts[0].toLowerCase() != '@' + msg.endpoint.me.account.toLowerCase() &&
+                parts[0].toLowerCase() != '@' + msg.endpoint.me.name.toLowerCase()) {
+                return;
             }
-            else if (parts.length > 1 && parts[0][0] == '<') { // Discord: <@account> !command
-                if (cmdStr != '<@' + msg.endpoint.me.account + '>') {
-                    return;
-                }
-                cmdStr = parts[1].toLowerCase();
-                cmdMsg.args = parts.slice(2);
+            cmdStr = parts[1].toLowerCase();
+            cmdMsg.args = parts.slice(2);
+        }
+        else if (parts.length > 1 && parts[0][0] == '<') { // Discord: <@account> !command
+            if (cmdStr != '<@' + msg.endpoint.me.account + '>') {
+                return;
             }
-            else if (parts.length > 1 && cmdStr == msg.endpoint.me.name.toLowerCase()) { // IRC: Name !command (no @ required)
-                cmdStr = parts[1].toLowerCase();
-                cmdMsg.args = parts.slice(2);
+            cmdStr = parts[1].toLowerCase();
+            cmdMsg.args = parts.slice(2);
+        }
+        else if (parts.length > 1 && cmdStr == msg.endpoint.me.name.toLowerCase()) { // IRC: Name !command (no @ required)
+            cmdStr = parts[1].toLowerCase();
+            cmdMsg.args = parts.slice(2);
+        }
+        else if (parts.length > 0 && cmdStr.indexOf(msg.endpoint.me.name.toLowerCase()) === 0) { // Skype: Name!command
+            if (cmdStr.indexOf(sender.config.commandPrefix) === -1) { // Probably: Name !command
+                if (parts.length > 1) {
+                    cmdStr = parts[1].toLowerCase();
+                    cmdMsg.args = parts.slice(2)
+                }
+                else {  // Maybe the bot's name is a command?
+                }
             }
             else {
-                let indx = parts[0].indexOf("@");
-                if (indx >= 2 && cmdStr.substr(indx) == '@' + msg.endpoint.me.account.toLowerCase()) { // Telegram: /command@account
-                    cmdStr = cmdStr.substr(0, indx);
+                // Check for Skype: Name!command
+                if (cmdStr[msg.endpoint.me.name.length] != sender.config.commandPrefix) { // Likely: Name(something)! which is invalid pattern.
+                    return;
                 }
-            }
-    
-            cmdMsg.command = cmdStr;
 
-            let cmd = this.textCommands[cmdStr];
-            let ctch = (er) => {
-                if (this.isUserAuthed(msg) >= 3) {
-                    sender.say(msg.from, "[Error] " + er);
-                }
+                cmdStr = parts[0].substr(msg.endpoint.me.name.length);
             }
 
+        }
+        else {
+            let indx = parts[0].indexOf("@");
+            if (indx >= 2 && cmdStr.substr(indx) == '@' + msg.endpoint.me.account.toLowerCase()) { // Telegram: /command@account
+                cmdStr = cmdStr.substr(0, indx);
+            }
+        }
+
+        cmdMsg.command = cmdStr;
+
+        let cmd = this.textCommands[cmdStr];
+
+        try {
+            console.log("BOT1");
             if (cmd && !cmd.requireCommandPrefix) {
-                cmd.execute(this, cmdMsg).catch(ctch);
+                await cmd.execute(this, cmdMsg);
             }
             else if (cmdStr[0] == sender.config.commandPrefix) {
                 cmd = this.textCommands[cmdStr.substr(1)];
 
                 if (cmd) {
-                    cmd.execute(this, cmdMsg).catch(ctch);
+                    await cmd.execute(this, cmdMsg);
                 }
             }
-        });
+            console.log("BOT2");
+        }
+        catch (er) {
+            if (this.isUserAuthed(msg) >= 3) {
+                sender.say(msg.from, "[Error] " + er);
+            }
+        }
     }
-
     init() : void {
         // Load the commands before other things in case they add commands during init/module load.
         let deser = JSON.parse(fs.readFileSync(this.cmdStorage).toString());
@@ -152,6 +181,10 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
                     break;
                 case EndpointTypes.Twitch:
                     endpoint = new TwitchEndpoint(ep, this);
+                    break;
+                case EndpointTypes.BotFramework:
+                    endpoint = new BotFrameworkEndpoint(ep, this);
+                    break;
                 default:
                     throw new Error("Missing endpoint type: " + ep.type.toString());
             }
@@ -295,7 +328,7 @@ export class Bot extends EventEmitter implements ITickable, IAuthable {
             modConfig = this.config.endpoints.filter(p => p.name == endpoint)[0].
                 modules.filter(p => (typeof p == "string" && p == module) || (<ModuleConfig>p).file == module);
         }
-console.log("RELOAD MOD:", modConfig);
+        console.log("RELOAD MOD:", modConfig);
         if (modConfig.length > 0 && typeof modConfig[0] != "string") {
             cfg = (<ModuleConfig>modConfig[0]).options;
         }
@@ -387,23 +420,25 @@ console.log("RELOAD MOD:", modConfig);
                 switch(option.type) {
                     case CommandAuthTypes.Role:
                         // N/A mostly due to async.
-                    break;
+                        break;
                     case CommandAuthTypes.Account:
                         toTest = message.from.account;
+                        break;
                     case CommandAuthTypes.Name:
                         toTest = message.from.name;
-                        if (option.valueRegex.test(toTest)) {
-                            level = option.level;
-
-                            // We don't want to cache the login info, because not all
-                            // servers broadcast name changes, and IRC doesn't gurantee
-                            // they are signed in to services.
-                            //aut.set(message.from.name, level); // Cache for laters
-                            break;
-                        }
-                    break;
+                        break;
                     default:
                         throw new Error("Missing command auth type option");
+                }
+
+                if (option.valueRegex.test(toTest)) {
+                    level = option.level;
+
+                    // We don't want to cache the login info, because not all
+                    // servers broadcast name changes, and IRC doesn't gurantee
+                    // they are signed in to services.
+                    //aut.set(message.from.name, level); // Cache for laters
+                    // break;
                 }
 
                 if (level > 1) {

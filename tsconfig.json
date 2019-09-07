@@ -2,7 +2,7 @@
     "compilerOptions": {
         "outDir": "./bin/",
         "sourceMap": true,
-        "target": "es6",
+        "target": "es2019",
         "module":"commonjs",
         "moduleResolution": "node",
         "declaration": true,

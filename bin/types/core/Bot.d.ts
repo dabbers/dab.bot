@@ -9,6 +9,7 @@ import { IEvent } from './Events/IEvent';
 import { IMessage } from './Events/IMessage';
 import { IAuthable } from './IAuthable';
 import { ManagerConfig } from './config/ManagerConfig';
+import { IEventable } from './IEventable';
 export interface ICommandThrottleOptions {
     user: number;
     channel: number;
@@ -21,10 +22,11 @@ export interface ICommandAuthOptions {
     authType: ("account" | "level" | "name" | "role");
     authValue: string;
 }
-export declare class Bot extends EventEmitter implements ITickable, IAuthable {
+export declare class Bot extends EventEmitter implements ITickable, IAuthable, IEventable {
     discriminator: string;
     cmdStorage: string;
     constructor(config: BotConfig);
+    onMessage(sender: IEndpoint, msg: IMessage): Promise<void>;
     init(): void;
     loadModule(module: string, cfg?: any, endpoint?: string): Bot;
     reloadModule(module: string, endpoint?: string): void;
@@ -32,7 +34,7 @@ export declare class Bot extends EventEmitter implements ITickable, IAuthable {
     loginUser(message: IMessage): boolean;
     isUserAuthed(message: IEvent): number;
     logoutUser(message: IEvent): boolean;
-    initNewCommand(name: string, fnc: (Bot, IEvent) => any, throttle: ICommandThrottleOptions, binding: ICommandBindOptions[], auths: ICommandAuthOptions[], serialize?: boolean, requireCommandPrefix?: boolean): Command<IMessage>;
+    initNewCommand(name: string, fnc: (Bot: any, IEvent: any) => any, throttle: ICommandThrottleOptions, binding: ICommandBindOptions[], auths: ICommandAuthOptions[], serialize?: boolean, requireCommandPrefix?: boolean): Command<IMessage>;
     addCommand(cmd: Command<IMessage>): Bot;
     delCommand(cmd: string): Bot;
     setCommand(cmd: Command<IEvent>): Bot;

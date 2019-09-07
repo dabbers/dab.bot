@@ -1,9 +1,8 @@
-import { IEndpoint } from '../core/IEndpoint';
+import { IEndpoint, IEndpointBot } from '../core/IEndpoint';
 import { EndpointTypes } from '../core/EndpointTypes';
 import { IChannel } from '../core/IChannel';
 import { IUser } from '../core/IUser';
 import { IMessage } from '../core/Events/IMessage';
-import { IAuthable } from '../core/IAuthable';
 import { EndpointConfig } from '../core/config/EndpointConfig';
 export declare class TestEndpoint implements IEndpoint {
     type: EndpointTypes;
@@ -34,6 +33,7 @@ export declare class TestEndpoint implements IEndpoint {
     emit(event: string | symbol, ...args: any[]): boolean;
     eventNames(): (string | symbol)[];
     listenerCount(type: string | symbol): number;
-    authBot: IAuthable;
+    off(event: string | symbol, listener: (...args: any[]) => void): this;
+    authBot: IEndpointBot;
     config: EndpointConfig;
 }

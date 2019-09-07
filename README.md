@@ -7,14 +7,14 @@ Every endpoint needs to emit 3 different events: Join, Leave, and Message. Join 
 
 Currently a work in progress. See the sample config for how to configure, then run tsc and then node bin/index.js to start the bot. You can see an example module in src/modules/. 
 
-I'm currently planning on having most modules be an NPM package. So you can inclued modules just by including them in the package.json. You can still include local modules though.
+I'm currently planning on having most modules be an NPM package. So you can include modules just by including them in the package.json. You can still include local modules though. Module and command support are basically working. I still have some tests to run but things are looking good.
 
 # "Features"
 
 * Connect to IRC *done*
 * Connect to Discord *done*
 * Connect to Telegram *done*
-* Connect to Microsoft BotFramework
+* Connect to Microsoft BotFramework *Functional, probably buggy still*
 * Emits Messages *done*
 * Emits Join Messages
 * Emits Leave Messages (IRC will send quit and parts as same message)

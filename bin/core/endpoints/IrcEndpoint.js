@@ -13,6 +13,7 @@ class IrcMessage {
         this.endpoint = ep;
     }
     reply(message) {
+        console.log("irc reply");
         this.endpoint.say((this.isDirectMessage ? this.from : this.target), message);
     }
     action(message) {
@@ -107,9 +108,10 @@ class IrcEndpoint extends events_1.EventEmitter {
         this.authBot = authBot;
     }
     say(destination, message) {
+        console.log("irc reply");
         if (message === undefined || message === null)
             message = "null";
-        let msgParts = message.split("\n");
+        let msgParts = message.toString().split("\n");
         let dst = "";
         if (typeof destination === "string") {
             dst = destination;
@@ -174,6 +176,7 @@ class IrcEndpoint extends events_1.EventEmitter {
         this.client.on('message', (event) => {
             let msg = new IrcMessage(this, new IrcUser(this, event), (event.target[0] == "#" ? new IrcChannel(this, event.target) : this.me), event.message);
             this.emit(IEndpoint_1.EndpointEvents.Message.toString(), this, msg);
+            this.authBot.onMessage(this, msg);
         });
         this.client.matchMessage(/^!hi/, (event) => {
             event.reply('sup');

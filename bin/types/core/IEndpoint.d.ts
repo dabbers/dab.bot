@@ -6,6 +6,7 @@ import { IUser } from './IUser';
 import { IMessage } from './Events/IMessage';
 import { IAuthable } from "./IAuthable";
 import { EndpointConfig } from "./config/EndpointConfig";
+import { IEventable } from "./IEventable";
 export declare enum EndpointEvents {
     Connected = "Connected",
     NewChannel = "NewChannel",
@@ -13,7 +14,9 @@ export declare enum EndpointEvents {
     UserLeave = "UserLeave",
     NameChange = "NameChange",
     Disconnected = "Disconnected",
-    Message = "Message",
+    Message = "Message"
+}
+export interface IEndpointBot extends IAuthable, IEventable {
 }
 export interface IEndpoint extends EventEmitter {
     type: EndpointTypes;
@@ -27,6 +30,6 @@ export interface IEndpoint extends EventEmitter {
     action(destination: (IUser | IChannel | string), message: string): void;
     send(msg: IMessage): void;
     me: IUser;
-    authBot: IAuthable;
+    authBot: IEndpointBot;
     config: EndpointConfig;
 }

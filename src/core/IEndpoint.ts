@@ -5,6 +5,7 @@ import {IUser} from './IUser';
 import {IMessage} from './Events/IMessage';
 import { IAuthable } from "./IAuthable";
 import { EndpointConfig } from "./config/EndpointConfig";
+import { IEventable } from "./IEventable";
 
 export enum EndpointEvents {
     Connected = "Connected",
@@ -16,6 +17,8 @@ export enum EndpointEvents {
     Message = "Message"
 };
 
+export interface IEndpointBot extends IAuthable, IEventable {
+}
 export interface IEndpoint extends EventEmitter {
     type:EndpointTypes;
     name:string;
@@ -32,6 +35,6 @@ export interface IEndpoint extends EventEmitter {
     send(msg:IMessage) : void;
     
     me:IUser;
-    authBot:IAuthable;
+    authBot:IEndpointBot;
     config:EndpointConfig;
 }

@@ -1,12 +1,11 @@
 /// <reference types="node" />
 import { EndpointTypes } from "../EndpointTypes";
-import { IEndpoint } from '../IEndpoint';
+import { IEndpoint, IEndpointBot } from '../IEndpoint';
 import { EventEmitter } from "events";
 import { IChannel } from '../IChannel';
 import { IUser } from '../IUser';
 import { IMessage } from '../Events/IMessage';
 import { EndpointConfig } from '../config/EndpointConfig';
-import { IAuthable } from "../IAuthable";
 export declare class IrcMessage implements IMessage {
     constructor(ep: IrcEndpoint, from: IUser, target: (IUser | IChannel), message: string);
     message: string;
@@ -58,7 +57,7 @@ export declare class IrcChannel implements IChannel {
 }
 export declare class IrcEndpoint extends EventEmitter implements IEndpoint {
     readonly me: IUser;
-    constructor(options: EndpointConfig, authBot: IAuthable);
+    constructor(options: EndpointConfig, authBot: IEndpointBot);
     say(destination: (IUser | IChannel | string), message: string): void;
     action(destination: (IUser | IChannel | string), message: string): void;
     raw(message: string): void;
@@ -72,6 +71,6 @@ export declare class IrcEndpoint extends EventEmitter implements IEndpoint {
     part(channel: (IChannel | string)): void;
     client: any;
     config: EndpointConfig;
-    authBot: IAuthable;
+    authBot: IEndpointBot;
     toString(): string;
 }

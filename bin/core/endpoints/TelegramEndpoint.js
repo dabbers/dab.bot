@@ -115,7 +115,7 @@ class TelegramEndpoint extends events_1.EventEmitter {
         this.me = { "name": "??", discriminator: "IUser", account: "??", action: () => true, say: () => true };
     }
     connect() {
-        console.log("telegram");
+        console.log("telegram connect");
         this.client = new telegraf_1.default(this.config.connectionString[0]);
         // Need to understand if this is needed when using polling.
         this.client.on('connected_website', () => {
@@ -129,6 +129,7 @@ class TelegramEndpoint extends events_1.EventEmitter {
         this.client.on('text', (ctx) => {
             let msg = new TelegramMessage(this, ctx);
             this.emit(IEndpoint_1.EndpointEvents.Message.toString(), this, msg);
+            this.authBot.onMessage(this, msg);
         });
         this.client.telegram.deleteWebhook().then(() => {
             this.client.startPolling();
