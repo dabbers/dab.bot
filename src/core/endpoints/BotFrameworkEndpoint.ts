@@ -13,6 +13,7 @@ import { IAuthable } from "../IAuthable";
 import { BotFrameworkAdapter, TurnContext } from "botbuilder";
 import { ConversationReference } from "botframework-connector/lib/connectorApi/models/mappers";
 import { IEventable } from "../IEventable";
+import { Command } from "../Command";
 
 export class BotFrameworkMessage implements IMessage {
     constructor(endpoint:BotFrameworkEndpoint, context: builder.TurnContext) {
@@ -247,6 +248,12 @@ export class BotFrameworkEndpoint extends EventEmitter implements IEndpoint {
             this.emit.apply(this, args);
             res();
         });
+    }
+
+    registerCommand(cmd:Command<IMessage>) {
+    }
+    
+    deregisterCommand(cmd:Command<IMessage>) {
     }
     
     config:EndpointConfig;

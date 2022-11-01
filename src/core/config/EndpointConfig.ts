@@ -1,5 +1,6 @@
 import { EndpointTypes } from "../EndpointTypes";
 import { ChannelConfig } from "./ChannelConfig";
+import { LevelConfig } from "./LevelConfig";
 import { ManagerConfig } from "./ManagerConfig";
 import { ModuleConfig } from "./ModuleConfig";
 
@@ -24,4 +25,6 @@ export class EndpointConfig {
     managers:ManagerConfig[];
 
     commandPrefix:string;
+
+    levelMaps:LevelConfig[];
 }

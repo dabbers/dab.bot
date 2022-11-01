@@ -18,7 +18,7 @@ var keys :string[] = [
         "serialize",
         "requirecommandprefix"
 ];
-var panel = fs.readFileSync('.../../storage/manage_page.html').toString();
+var panel = fs.readFileSync('storage/manage_page.html').toString();
 
 var fncTemplate:string = "let m = message; let msg = message;\r\n{code};";
 var rawEval = "";

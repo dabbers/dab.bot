@@ -8,16 +8,17 @@ import {IMessage} from '../Events/IMessage';
 import {IJoin} from '../Events/IJoin';
 import {ILeave} from '../Events/ILeave';
 import * as Telegram from 'telegraf';
-import Telegraf from 'telegraf';
+import {Telegraf} from 'telegraf';
 import { User } from 'telegram-typings'
 
 import{EndpointConfig} from '../config/EndpointConfig';
 import { DESTRUCTION } from "dns";
 import { IAuthable } from "../IAuthable";
 import { ExtraReplyMessage } from "telegraf/typings/telegram-types";
+import { Command } from "../Command";
 
 export class TelegramMessage implements IMessage {
-    constructor(endpoint:TelegramEndpoint, message:Telegram.ContextMessageUpdate) {
+    constructor(endpoint:TelegramEndpoint, message: Telegram.NarrowedContext<Telegram.Context, Telegram.Types.MountMap['text']>) {
         this.endpoint = endpoint;
         this.msg = message;
         this.fromUser = new TelegramUser(this.endpoint, this.msg.from);
@@ -58,7 +59,7 @@ export class TelegramMessage implements IMessage {
     }
 
     endpoint: TelegramEndpoint;
-    msg:Telegram.ContextMessageUpdate;
+    msg: Telegram.NarrowedContext<Telegram.Context, Telegram.Types.MountMap['text']>;
     fromUser:TelegramUser;
 
     get discriminator() : string {
@@ -100,7 +101,7 @@ export class TelegramUser implements IUser {
 }
 
 export class TelegramChannel implements IChannel {
-    constructor(endpoint:TelegramEndpoint, chann:Telegram.ContextMessageUpdate) {
+    constructor(endpoint:TelegramEndpoint, chann: Telegram.NarrowedContext<Telegram.Context, Telegram.Types.MountMap['text']>) {
         this.endpoint = endpoint;
         this.chann = chann;
         this.name = this.chann.chat.id.toString();
@@ -134,7 +135,7 @@ export class TelegramChannel implements IChannel {
 
     discriminator:string = "CORE.TelegramChannel";
     endpoint: TelegramEndpoint;
-    chann:Telegram.ContextMessageUpdate;
+    chann: Telegram.NarrowedContext<Telegram.Context, Telegram.Types.MountMap['text']>;
 
     toString() : string {
         return "[" + this.name + " " + this.discriminator + " Channel]";
@@ -158,7 +159,7 @@ export class TelegramEndpoint extends EventEmitter implements IEndpoint {
         this.me = {"name":"??", discriminator:"IUser", account:"??", action:()=>true, say: ()=>true};
     }
 
-    connect(): void {
+    async connect(): Promise<void> {
         console.log("telegram connect");
         this.client = new Telegraf(this.config.connectionString[0]);
 
@@ -178,21 +179,17 @@ export class TelegramEndpoint extends EventEmitter implements IEndpoint {
             this.authBot.onMessage(this, msg);
         });
 
-        (<any>this.client.telegram).deleteWebhook().then( () => {
-            this.client.startPolling();
-        }).then( () => {
-            // this.client.telegram.getChatMembersCount
-            this.client.telegram.getMe().then((botInfo) => {
-                this.me = new TelegramUser(this, botInfo);
-                this.emit(EndpointEvents.Connected.toString(), this, this.me);
-              }, (reason) => {
-                  console.error("TELEGRAM ME ERROR: " + JSON.stringify(reason));
-            });
-        });      
+        await this.client.launch();
+        this.client.telegram.getMe().then((botInfo) => {
+            this.me = new TelegramUser(this, botInfo);
+            this.emit(EndpointEvents.Connected.toString(), this, this.me);
+            }, (reason) => {
+                console.error("TELEGRAM ME ERROR: " + JSON.stringify(reason));
+        });
     }
 
     disconnect(): void {
-        throw new Error("Cannot disconnect from telegram.");
+        this.client.stop("Disconnect");
     }
 
     get isConnected(): boolean {
@@ -225,9 +222,15 @@ export class TelegramEndpoint extends EventEmitter implements IEndpoint {
     toString() : string {
         return "[" + this.name + " TelegramEndpoint Endpoint]";
     }
+
+    registerCommand(cmd:Command<IMessage>) {
+    }
+    
+    deregisterCommand(cmd:Command<IMessage>) {
+    }
     
     me: IUser
-    client:Telegram.Telegraf<Telegram.ContextMessageUpdate>;
+    client:Telegram.Telegraf;
     config:EndpointConfig;
     authBot:IEndpointBot;
 }

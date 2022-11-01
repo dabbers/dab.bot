@@ -6,6 +6,7 @@ import {IMessage} from './Events/IMessage';
 import { IAuthable } from "./IAuthable";
 import { EndpointConfig } from "./config/EndpointConfig";
 import { IEventable } from "./IEventable";
+import { Command } from "./Command";
 
 export enum EndpointEvents {
     Connected = "Connected",
@@ -14,7 +15,8 @@ export enum EndpointEvents {
     UserLeave = "UserLeave",
     NameChange = "NameChange",
     Disconnected = "Disconnected",
-    Message = "Message"
+    Message = "Message",
+    Command = "Command"
 };
 
 export interface IEndpointBot extends IAuthable, IEventable {
@@ -26,6 +28,9 @@ export interface IEndpoint extends EventEmitter {
     disconnect() : void;
 
     readonly isConnected:boolean;
+
+    registerCommand(cmd:Command<IMessage>); // Command info here
+    deregisterCommand(cmd:Command<IMessage>); // Command arg here
 
     join(channel:(IChannel|string), key:string) : void;
     part(channel:(IChannel|string)) : void;

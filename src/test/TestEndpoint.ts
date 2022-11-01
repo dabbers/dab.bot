@@ -5,6 +5,7 @@ import {IUser} from '../core/IUser';
 import {IMessage} from '../core/Events/IMessage';
 import { IAuthable } from '../core/IAuthable';
 import { EndpointConfig } from '../core/config/EndpointConfig';
+import { Command } from '../core/Command';
 
 export class TestEndpoint implements IEndpoint {
     type: EndpointTypes = EndpointTypes.IRC;    name: string = "TestEndpoint";
@@ -81,6 +82,12 @@ export class TestEndpoint implements IEndpoint {
         throw new Error("Method not implemented.");
     }
     off(event: string | symbol, listener: (...args: any[]) => void): this {
+        throw new Error("Method not implemented");
+    }
+    registerCommand(cmd:Command<IMessage>) {
+        throw new Error("Method not implemented");
+    }
+    deregisterCommand(cmd:Command<IMessage>) {
         throw new Error("Method not implemented");
     }
     authBot:IEndpointBot;

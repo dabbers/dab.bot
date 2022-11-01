@@ -73,6 +73,14 @@ export class CommandBindOptions {
         this.parsed.endpoint = new RegExp(parts[1]);
     }
 
+    isEndpointAllowed(endpoint: IEndpoint) {
+        if (this.parsed.endpoint.test(endpoint.name)) {
+            return true;
+        }
+
+        return false;
+    }
+
     canCommandExecute(event:IEvent) : boolean {
         let target = (event.discriminator.indexOf("Leave") != -1) ? (<ILeave>event).target : [(<IMessage>event).target];
 

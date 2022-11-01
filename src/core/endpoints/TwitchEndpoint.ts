@@ -12,6 +12,7 @@ import * as twitch from 'tmi.js';
 import{EndpointConfig} from '../config/EndpointConfig';
 import { IAuthable } from "../IAuthable";
 import { GenericIrcUser } from "./IrcEndpoint";
+import { Command } from "../Command";
 
 export class TwitchMessage implements IMessage {
     constructor(ep:TwitchEndpoint, from:IUser, target:(IUser | IChannel), message:string) {
@@ -280,6 +281,12 @@ export class TwitchEndpoint extends EventEmitter implements IEndpoint {
         else {
             this.client.part(channel.name);
         }
+    }
+
+    registerCommand(cmd:Command<IMessage>) {
+    }
+    
+    deregisterCommand(cmd:Command<IMessage>) {
     }
 
     client:any;

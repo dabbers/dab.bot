@@ -17,7 +17,7 @@ export class Module {
         if (this.initCb) {
             (<any>global).oldInterval = global.setInterval;
 
-            global.setInterval = (callback:(...args:any[])=>void, number):NodeJS.Timer => {
+            (<any>global.setInterval) = (callback:(...args:any[])=>void, number):NodeJS.Timeout => {
                 let n : NodeJS.Timer = (<any>global).oldInterval(callback, number);
     
                 // prevent from keeping the event loop open

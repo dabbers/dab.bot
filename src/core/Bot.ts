@@ -22,6 +22,7 @@ import { ModuleConfig } from './config/ModuleConfig';
 import { TwitchEndpoint } from './endpoints/TwitchEndpoint';
 import { BotFrameworkEndpoint } from './endpoints/BotFrameworkEndpoint';
 import { IEventable } from './IEventable';
+import { EndpointConfig } from './config/EndpointConfig';
 
 export interface ICommandThrottleOptions {
     user:number,
@@ -132,7 +133,6 @@ export class Bot extends EventEmitter implements ITickable, IAuthable, IEventabl
         let cmd = this.textCommands[cmdStr];
 
         try {
-            console.log("BOT1");
             if (cmd && !cmd.requireCommandPrefix) {
                 await cmd.execute(this, cmdMsg);
             }
@@ -143,7 +143,6 @@ export class Bot extends EventEmitter implements ITickable, IAuthable, IEventabl
                     await cmd.execute(this, cmdMsg);
                 }
             }
-            console.log("BOT2");
         }
         catch (er) {
             if (this.isUserAuthed(msg) >= 3) {
@@ -155,55 +154,15 @@ export class Bot extends EventEmitter implements ITickable, IAuthable, IEventabl
         // Load the commands before other things in case they add commands during init/module load.
         let deser = JSON.parse(fs.readFileSync(this.cmdStorage).toString());
         let deserKeys = Object.keys(deser);
-
-        deserKeys.forEach(p => deser[p] = Command.Deserialize<IMessage>(deser[p]));
-        this.textCommands = deser;
-
+        
         for(let i = 0; i < this.config.endpoints.length; i++) {
             let ep = this.config.endpoints[i];
 
             let endpointKey = ep.name || ep.type.toString();
-            let endpoint = null;
-
-            if (this.endpoints[endpointKey]) {
-                throw new Error("Duplicate endpoint: '" + endpointKey + "'. Specifying a unique name will resolve this.");
-            }
-
-            switch(ep.type) {
-                case EndpointTypes.IRC:
-                    endpoint = new IrcEndpoint(ep, this);
-                    break;
-                case EndpointTypes.Telegram:
-                    endpoint = new TelegramEndpoint(ep, this);
-                    break;
-                case EndpointTypes.Discord:
-                    endpoint = new DiscordEndpoint(ep, this);
-                    break;
-                case EndpointTypes.Twitch:
-                    endpoint = new TwitchEndpoint(ep, this);
-                    break;
-                case EndpointTypes.BotFramework:
-                    endpoint = new BotFrameworkEndpoint(ep, this);
-                    break;
-                default:
-                    throw new Error("Missing endpoint type: " + ep.type.toString());
-            }
-
-            this.endpoints[endpointKey] = endpoint;
-            if (ep.modules) {
-                for(let name of ep.modules) {
-                    if (typeof name == "string") {
-                        this.loadModule(name, null, endpointKey);
-                    }
-                    else {
-                        this.loadModule(name.file, name.options, endpointKey);
-                    }
-                }
-            }
-
-            this.authOptions.set(endpoint, ep.managers.map(p => new Manager(p)));
-            this.auth.set(endpoint, new Map<string,number>());
+            this.createEndpoint(endpointKey, ep);
         }
+
+        deserKeys.forEach(p => this.addCommand(Command.Deserialize<IMessage>(deser[p])));
 
         // Some modules may require certain endpoints for init.
         if (this.config.modules) {
@@ -218,42 +177,82 @@ export class Bot extends EventEmitter implements ITickable, IAuthable, IEventabl
                 }
             }
         }
+    }
 
-        // Wait for each endpoint to be created before connecting
-        let keys = Object.keys(this.endpoints);
-        for(let key in keys) {
-            if (this.endpoints.hasOwnProperty(keys[key])) {
-                this.endpoints[keys[key]].on(EndpointEvents.Connected.toString(), (...args:any[]) => {
-                    args.unshift(EndpointEvents.Connected.toString());
-                    this.emit.apply(this, args);
-                });
-                this.endpoints[keys[key]].on(EndpointEvents.NewChannel.toString(), (...args:any[]) => {
-                    args.unshift(EndpointEvents.NewChannel.toString());
-                    this.emit.apply(this, args);
-                });
-                this.endpoints[keys[key]].on(EndpointEvents.UserJoin.toString(), (...args:any[]) => {
-                    args.unshift(EndpointEvents.UserJoin.toString());
-                    this.emit.apply(this, args);
-                });
-                this.endpoints[keys[key]].on(EndpointEvents.UserLeave.toString(), (...args:any[]) => {
-                    args.unshift(EndpointEvents.UserLeave.toString());
-                    this.emit.apply(this, args);
-                });
-                this.endpoints[keys[key]].on(EndpointEvents.NameChange.toString(), (...args:any[]) => {
-                    args.unshift(EndpointEvents.NameChange.toString());
-                    this.emit.apply(this, args);
-                });
-                this.endpoints[keys[key]].on(EndpointEvents.Disconnected.toString(), (...args:any[]) => {
-                    args.unshift(EndpointEvents.Disconnected.toString());
-                    this.emit.apply(this, args);
-                });
-                this.endpoints[keys[key]].on(EndpointEvents.Message.toString(), (...args:any[]) => {
-                    args.unshift(EndpointEvents.Message.toString());
-                    this.emit.apply(this, args);
-                });
-                this.endpoints[keys[key]].connect();
+    createEndpoint(endpointKey: string, ep: EndpointConfig) {
+        let endpoint = null;
+        if (this.endpoints[endpointKey]) {
+            throw new Error("Duplicate endpoint: '" + endpointKey + "'. Specifying a unique name will resolve this.");
+        }
+
+        switch(ep.type) {
+            case EndpointTypes.IRC:
+                endpoint = new IrcEndpoint(ep, this);
+                break;
+            case EndpointTypes.Telegram:
+                endpoint = new TelegramEndpoint(ep, this);
+                break;
+            case EndpointTypes.Discord:
+                endpoint = new DiscordEndpoint(ep, this);
+                break;
+            case EndpointTypes.Twitch:
+                endpoint = new TwitchEndpoint(ep, this);
+                break;
+            case EndpointTypes.BotFramework:
+                endpoint = new BotFrameworkEndpoint(ep, this);
+                break;
+            default:
+                throw new Error("Missing endpoint type: " + ep.type.toString());
+        }
+
+        this.endpoints[endpointKey] = endpoint;
+
+        if (ep.modules) {
+            for(let name of ep.modules) {
+                if (typeof name == "string") {
+                    this.loadModule(name, null, endpointKey);
+                }
+                else {
+                    this.loadModule(name.file, name.options, endpointKey);
+                }
             }
         }
+
+        this.authOptions.set(endpoint, ep.managers.map(p => new Manager(p)));
+        this.auth.set(endpoint, new Map<string,number>());
+
+        // Todo: Find a more dynamic way to do this.
+        endpoint.on(EndpointEvents.Connected.toString(), (...args:any[]) => {
+            args.unshift(EndpointEvents.Connected.toString());
+            this.emit.apply(this, args);
+        });
+        endpoint.on(EndpointEvents.NewChannel.toString(), (...args:any[]) => {
+            args.unshift(EndpointEvents.NewChannel.toString());
+            this.emit.apply(this, args);
+        });
+        endpoint.on(EndpointEvents.UserJoin.toString(), (...args:any[]) => {
+            args.unshift(EndpointEvents.UserJoin.toString());
+            this.emit.apply(this, args);
+        });
+        endpoint.on(EndpointEvents.UserLeave.toString(), (...args:any[]) => {
+            args.unshift(EndpointEvents.UserLeave.toString());
+            this.emit.apply(this, args);
+        });
+        endpoint.on(EndpointEvents.NameChange.toString(), (...args:any[]) => {
+            args.unshift(EndpointEvents.NameChange.toString());
+            this.emit.apply(this, args);
+        });
+        endpoint.on(EndpointEvents.Disconnected.toString(), (...args:any[]) => {
+            args.unshift(EndpointEvents.Disconnected.toString());
+            this.emit.apply(this, args);
+        });
+        endpoint.on(EndpointEvents.Message.toString(), (...args:any[]) => {
+            args.unshift(EndpointEvents.Message.toString());
+            this.emit.apply(this, args);
+        });
+
+        endpoint.connect();
+        return endpoint;
     }
 
     loadModule(module:string, cfg:any = null, endpoint:string = null) : Bot {
@@ -494,6 +493,16 @@ export class Bot extends EventEmitter implements ITickable, IAuthable, IEventabl
 
         this.textCommands[cmd.name] = cmd;
 
+        // Only commands that require a prefix can be handled by endpoint speciifc
+        // command handlers. 
+        if (cmd.requireCommandPrefix) {
+            for(let endpoint of Object.keys(this.endpoints)) {
+                if (cmd.binding.length == 0 || cmd.binding.filter(b => b.isEndpointAllowed(this.endpoints[endpoint])).length > 0) {
+                    this.endpoints[endpoint].registerCommand(cmd);
+                }
+            }
+        }
+
         if (cmd.serialize) {
             this.txtCmdsDirty = true;
         }
@@ -506,7 +515,11 @@ export class Bot extends EventEmitter implements ITickable, IAuthable, IEventabl
         if (!this.textCommands[cmd]) {
             throw new Error("Command does not exist");
         }
-
+        if (this.textCommands[cmd].requireCommandPrefix) {
+            for(let endpoint of Object.keys(this.endpoints)) {
+                this.endpoints[endpoint].deregisterCommand(this.textCommands[cmd]);
+            }
+        }
         delete this.textCommands[cmd];
         return this;
     }

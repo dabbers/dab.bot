@@ -32,6 +32,20 @@
                         "value": "^dab$",
                         "level": 3
                     }
+                ],
+                "levelMaps":[
+                    {
+                        "level": 1,
+                        "roleIds":"DiscordRoleIdHere"
+                    },
+                    {
+                        "level": 2,
+                        "roleIds":"DiscordRoleIdHere"
+                    },
+                    {
+                        "level": 3,
+                        "roleIds":"DiscordRoleIdHere"
+                    }
                 ]
             },
             {

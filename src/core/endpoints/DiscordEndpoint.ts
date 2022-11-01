@@ -12,22 +12,23 @@ import * as Discord from 'discord.js';
 import{EndpointConfig} from '../config/EndpointConfig';
 import { IAuthable } from "../IAuthable";
 import { IEventable } from "../IEventable";
+import { Command, CommandAuthTypes } from "../Command";
 
-export class DiscordMessage implements IMessage {
-    constructor(endpoint:DiscordEndpoint, message:Discord.Message) {
+export class DiscordInteractionMessage implements IMessage {
+    constructor(endpoint:DiscordEndpoint, message: Discord.ChatInputCommandInteraction<Discord.CacheType>) {
         this.endpoint = endpoint;
         this.msg = message;
     }
 
     get message(): string {
-        return this.msg.content;
+        return this.msg.commandName + " " + this.msg.options.getString('arguments');
     }
 
     get from(): IUser {
-        return new DiscordUser(this.endpoint, this.msg.author);
+        return new DiscordUser(this.endpoint, this.msg.user);
     }
     get isDirectMessage(): boolean {
-        return this.msg.channel.type == "dm";
+        return this.msg.channel.isDMBased();
     }
 
     get target(): IUser | IChannel {
@@ -51,7 +52,51 @@ export class DiscordMessage implements IMessage {
         throw new Error("Method not implemented.");
     }
     endpoint: DiscordEndpoint;
-    msg:Discord.Message;
+    msg: Discord.ChatInputCommandInteraction<Discord.CacheType>;
+
+    get discriminator() : string {
+        return "CORE.DiscordMessage";
+    }
+}
+export class DiscordMessage implements IMessage {
+    constructor(endpoint:DiscordEndpoint, message:Discord.Message|Discord.PartialMessage) {
+        this.endpoint = endpoint;
+        this.msg = message;
+    }
+
+    get message(): string {
+        return this.msg.content;
+    }
+
+    get from(): IUser {
+        return new DiscordUser(this.endpoint, this.msg.author);
+    }
+    get isDirectMessage(): boolean {
+        return this.msg.channel.type == Discord.ChannelType.DM;
+    }
+
+    get target(): IUser | IChannel {
+        if (this.isDirectMessage) {
+            return this.endpoint.me;
+        } else {
+            return new DiscordChannel(this.endpoint, <Discord.TextChannel>this.msg.channel);
+        }
+    }
+
+    reply(message: string): void {
+        this.msg.reply(message);
+    }
+    action(message: string): void {
+        this.msg.reply("*" + message + "*");
+    }
+    notice(message: string): void {
+        this.msg.reply("__**" + message + "**__");
+    }
+    part(): void {
+        throw new Error("Method not implemented.");
+    }
+    endpoint: DiscordEndpoint;
+    msg:Discord.Message|Discord.PartialMessage;
 
     get discriminator() : string {
         return "CORE.DiscordMessage";
@@ -74,10 +119,10 @@ export class DiscordUser implements IUser {
 
     discriminator: string = "CORE.DiscordUser";
     say(message: string): void {
-        this.user.sendMessage(message);
+        this.user.send(message); //.sendMessage(message);
     }
     action(message: string): void {
-        this.user.sendMessage("*" + message + "*");
+        this.user.send("*" + message + "*");
     }
     endpoint: IEndpoint;
     user:Discord.User;
@@ -112,9 +157,9 @@ export class DiscordChannel implements IChannel {
             let users = this.chann.members.filter(p => p.id == user.account);
 
             if (!users || users.size == 0) return resolve(false);
-            if (users.first().roles.size == 0) return resolve(false);
+            if (users.first().roles.cache.size == 0) return resolve(false);
 
-            resolve(users.first().roles.filter(p => p.name == role).size > 0);
+            resolve(users.first().roles.cache.filter(p => p.name == role).size > 0);
         });
     }
     
@@ -139,31 +184,56 @@ export class DiscordEndpoint extends EventEmitter implements IEndpoint {
         this.authBot = authBot;
     }
 
-    connect(): void {
-        console.log("discord connect");
-        this.client = new Discord.Client();
-        this.client.on('ready', () => {
+    async connect(): Promise<void> {
+        this.client = new Discord.Client({
+            intents: [
+                Discord.GatewayIntentBits.Guilds, 
+                Discord.GatewayIntentBits.DirectMessages,
+                Discord.GatewayIntentBits.MessageContent, 
+                Discord.GatewayIntentBits.GuildMessageReactions,
+                Discord.GatewayIntentBits.GuildIntegrations,
+                Discord.GatewayIntentBits.GuildMessages,
+            ]
+        });
+        this.client.on(Discord.Events.ClientReady, () => {
             this.emit(EndpointEvents.Connected.toString(), this, this.me);
         });
-        this.client.on('message', msg => {
+        this.client.on(Discord.Events.MessageCreate, msg => { // 'message'
             let msg2 = new DiscordMessage(this, msg);
             this.emit(EndpointEvents.Message.toString(), this, msg2);
             this.authBot.onMessage(this, msg2);
         });
-        this.client.on('error', err => {
-            console.log(err);
+        this.client.on(Discord.Events.Error, err => {
+            console.log("Error ", err);
             if (!this.isConnected) {
                 this.client.login(this.config.connectionString[0]);
             }
         });
+        this.client.on(Discord.Events.MessageUpdate, (old, newMsg) => {
+            let msg2 = new DiscordMessage(this, newMsg);
+            this.emit(EndpointEvents.Message.toString(), this, msg2);
+            this.authBot.onMessage(this, msg2);
+        });
+        this.client.on(Discord.Events.InteractionCreate, async interaction => {
+            if (!interaction.isChatInputCommand()) return;
+            interaction.commandName = "/" + interaction.commandName;
+            let msg2 =  new DiscordInteractionMessage(this, interaction);
+            this.emit(EndpointEvents.Message.toString(), this, msg2);
+            this.authBot.onMessage(this, msg2);
+        });
         
-        this.client.login(this.config.connectionString[0]);
+        const resp = await this.client.login(this.config.connectionString[0]);
+
+        for(let cmd of this.commandsToRegister) {
+            this.callCommandRegister(cmd);
+        }
+        this.commandsToRegister = [];
     }
     disconnect(): void {
         throw new Error("Method not implemented.");
     }
     get isConnected(): boolean {
-        return this.client.status != 5; // 5 == disconnected
+        return this.client.isReady();
     }
     join(channel: string | IChannel, key: string): void {
         throw new Error("Method not implemented.");
@@ -173,9 +243,9 @@ export class DiscordEndpoint extends EventEmitter implements IEndpoint {
     }
     say(destination: string | IChannel | IUser, message: string): void {
         if (typeof destination === "string") {
-            let chan = (<Discord.TextChannel>this.client.channels.get(destination));
+            let chan = (<Discord.TextChannel>this.client.channels.cache.get(destination));
             if (!chan) {
-                chan = (<Discord.TextChannel>this.client.channels.filter( (v, k, col) => (<Discord.TextChannel>v).name == destination).first());
+                chan = (<Discord.TextChannel>this.client.channels.cache.filter( (v, k, col) => (<Discord.TextChannel>v).name == destination).first());
                 if (!chan) throw new Error("Cannot find channel " + destination);
             }
 
@@ -185,11 +255,11 @@ export class DiscordEndpoint extends EventEmitter implements IEndpoint {
             // destination HAS to be a discord channel or user
             if (destination.discriminator.indexOf("Channel") > 0) {
                 let t = <DiscordChannel>destination;
-                dest = (<Discord.TextChannel>this.client.channels.get(t.chann.id));
+                dest = (<Discord.TextChannel>this.client.channels.cache.get(t.chann.id));
             }
             else {
                 let t = <DiscordUser>destination;
-                dest = this.client.users.get(t.user.id);
+                dest = this.client.users.cache.get(t.user.id);
             }
 
             dest.send(message);
@@ -203,10 +273,58 @@ export class DiscordEndpoint extends EventEmitter implements IEndpoint {
         this.say(msg.target, msg.message);
     }
 
+    registerCommand(cmd:Command<IMessage>) {
+        try {
+            
+        let cmdBuilder = new Discord.SlashCommandBuilder()
+            .setName(cmd.name)
+            .setDescription(cmd.name)
+            .addStringOption(option => 
+                option.setName('arguments')
+                .setDescription('Parameters to pass into command, possibly optional')
+                .setRequired(false));
+
+        let roleLimits = cmd.auth.filter(a => a.authType == CommandAuthTypes.Level || a.authType == CommandAuthTypes.Role);
+
+        if (roleLimits.length > 0) {
+            for(let roleLimit of roleLimits) {
+                switch(roleLimit.authType) {
+                    case CommandAuthTypes.Level:
+                        if (roleLimit.authValue == '3') {
+                            cmdBuilder.setDefaultMemberPermissions(Discord.PermissionFlagsBits.Administrator)
+                        }
+                        break;
+                    case CommandAuthTypes.Role:
+                        // Todo: Figure out how to set the right permission here.
+                        break;
+                }
+            }
+        }
+
+        if (this.isConnected) {
+            this.callCommandRegister(cmdBuilder);
+        } else {
+            this.commandsToRegister.push(cmdBuilder);
+        }
+    }
+    catch (ex) {
+        console.log("register Command error: ", ex);
+    }
+
+    }
+    
+    async callCommandRegister(cmd: Omit<Discord.SlashCommandBuilder, "addSubcommand" | "addSubcommandGroup">) {
+        await this.client.application.commands.create(cmd);
+    }
+
+    deregisterCommand(cmd:Command<IMessage>) {
+    }
+
     get me(): IUser {
         return new DiscordUser(this, this.client.user);
     }
     client:Discord.Client;
     config:EndpointConfig;
     authBot:IEndpointBot;
+    commandsToRegister: Omit<Discord.SlashCommandBuilder, "addSubcommand" | "addSubcommandGroup">[] = [];
 }

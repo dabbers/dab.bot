@@ -11,6 +11,7 @@ import * as IRC from 'irc-framework';
 
 import{EndpointConfig} from '../config/EndpointConfig';
 import { IAuthable } from "../IAuthable";
+import { Command } from "../Command";
 
 export class IrcMessage implements IMessage {
     constructor(ep:IrcEndpoint, from:IUser, target:(IUser | IChannel), message:string) {
@@ -290,6 +291,12 @@ export class IrcEndpoint extends EventEmitter implements IEndpoint {
         else {
             this.client.part(channel.name);
         }
+    }
+
+    registerCommand(cmd:Command<IMessage>) {
+    }
+    
+    deregisterCommand(cmd:Command<IMessage>) {
     }
 
     client:any;
